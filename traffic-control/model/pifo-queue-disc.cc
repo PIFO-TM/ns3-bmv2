@@ -1,7 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
- * Copyright (c) 2007, 2014 University of Washington
- *               2015 Universita' degli Studi di Napoli Federico II
+ * Copyright (c) 2018 Stanford University
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -16,29 +15,29 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Authors:  Stefano Avallone <stavallo@unina.it>
- *           Tom Henderson <tomhend@u.washington.edu>
+ * Author:  Stephen Ibanez <sibanez@stanford.edu>
  */
 
 #include "ns3/log.h"
 #include "ns3/object-factory.h"
 #include "ns3/queue.h"
+#include "ns3/prio-queue.h"
 #include "ns3/net-device-queue-interface.h"
 #include "ns3/socket.h"
 #include "pfifo-fast-queue-disc.h"
 
 namespace ns3 {
 
-NS_LOG_COMPONENT_DEFINE ("PfifoFastQueueDisc");
+NS_LOG_COMPONENT_DEFINE ("PifoQueueDisc");
 
-NS_OBJECT_ENSURE_REGISTERED (PfifoFastQueueDisc);
+NS_OBJECT_ENSURE_REGISTERED (PifoQueueDisc);
 
-TypeId PfifoFastQueueDisc::GetTypeId (void)
+TypeId PifoQueueDisc::GetTypeId (void)
 {
-  static TypeId tid = TypeId ("ns3::PfifoFastQueueDisc")
+  static TypeId tid = TypeId ("ns3::PifoQueueDisc")
     .SetParent<QueueDisc> ()
     .SetGroupName ("TrafficControl")
-    .AddConstructor<PfifoFastQueueDisc> ()
+    .AddConstructor<PifoQueueDisc> ()
     .AddAttribute ("MaxSize",
                    "The maximum number of packets accepted by this queue disc.",
                    QueueSizeValue (QueueSize ("1000p")),
@@ -49,21 +48,19 @@ TypeId PfifoFastQueueDisc::GetTypeId (void)
   return tid;
 }
 
-PfifoFastQueueDisc::PfifoFastQueueDisc ()
-  : QueueDisc (QueueDiscSizePolicy::MULTIPLE_QUEUES, QueueSizeUnit::PACKETS)
+PifoQueueDisc::PifoQueueDisc ()
+  : QueueDisc (QueueDiscSizePolicy::SINGLE_INTERNAL_PRIO_QUEUE, QueueSizeUnit::PACKETS)
 {
   NS_LOG_FUNCTION (this);
 }
 
-PfifoFastQueueDisc::~PfifoFastQueueDisc ()
+PifoQueueDisc::~PifoQueueDisc ()
 {
   NS_LOG_FUNCTION (this);
 }
-
-const uint32_t PfifoFastQueueDisc::prio2band[16] = {1, 2, 2, 2, 1, 2, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1};
 
 bool
-PfifoFastQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
+PifoQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
 {
   NS_LOG_FUNCTION (this << item);
 
@@ -74,127 +71,121 @@ PfifoFastQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
       return false;
     }
 
-  uint8_t priority = 0;
-  SocketPriorityTag priorityTag;
-  if (item->GetPacket ()->PeekPacketTag (priorityTag))
+  // Make sure to compute rank after making the drop decision otherwise
+  // the state in the rank computation can become out of sync
+  int32_t ret = Classify (item);
+  int32_t rank = 0;
+
+  if (ret == PacketFilter::PF_NO_MATCH)
     {
-      priority = priorityTag.GetPriority ();
+      NS_LOG_DEBUG ("No filter has been able to classify this packet, using priority 0.");
+    }
+  else
+    {
+      NS_LOG_DEBUG ("Packet filters returned " << ret);
+      rank = ret;
     }
 
-  uint32_t band = prio2band[priority & 0x0f];
+  item->SetPriority(rank);
+  bool retval = GetInternalPrioQueue (0)->Enqueue (item);
 
-  bool retval = GetInternalQueue (band)->Enqueue (item);
-
-  // If Queue::Enqueue fails, QueueDisc::DropBeforeEnqueue is called by the
-  // internal queue because QueueDisc::AddInternalQueue sets the trace callback
+  // If PrioQueue::Enqueue fails, QueueDisc::DropBeforeEnqueue is called by the
+  // internal prio queue because QueueDisc::AddInternalPrioQueue sets the trace callback
 
   if (!retval)
     {
-      NS_LOG_WARN ("Packet enqueue failed. Check the size of the internal queues");
+      NS_LOG_WARN ("Packet enqueue failed. Check the size of the internal priority queue");
     }
 
-  NS_LOG_LOGIC ("Number packets band " << band << ": " << GetInternalQueue (band)->GetNPackets ());
+  NS_LOG_LOGIC ("Number packets in priority queue::" << GetInternalPrioQueue (0)->GetNPackets ());
 
   return retval;
 }
 
 Ptr<QueueDiscItem>
-PfifoFastQueueDisc::DoDequeue (void)
+PifoQueueDisc::DoDequeue (void)
 {
   NS_LOG_FUNCTION (this);
 
   Ptr<QueueDiscItem> item;
 
-  for (uint32_t i = 0; i < GetNInternalQueues (); i++)
+  if ((item = GetInternalPrioQueue (0)->Dequeue ()) != 0)
     {
-      if ((item = GetInternalQueue (i)->Dequeue ()) != 0)
-        {
-          NS_LOG_LOGIC ("Popped from band " << i << ": " << item);
-          NS_LOG_LOGIC ("Number packets band " << i << ": " << GetInternalQueue (i)->GetNPackets ());
-          return item;
-        }
+      NS_LOG_LOGIC ("Popped from priority queue: " << item);
+      NS_LOG_LOGIC ("Number packets priority queue: " << GetInternalPrioQueue (0)->GetNPackets ());
+      return item;
     }
   
-  NS_LOG_LOGIC ("Queue empty");
+  NS_LOG_LOGIC ("PrioQueue empty");
   return item;
 }
 
 Ptr<const QueueDiscItem>
-PfifoFastQueueDisc::DoPeek (void)
+PifoQueueDisc::DoPeek (void)
 {
   NS_LOG_FUNCTION (this);
 
   Ptr<const QueueDiscItem> item;
 
-  for (uint32_t i = 0; i < GetNInternalQueues (); i++)
+  if ((item = GetInternalPrioQueue (0)->Peek ()) != 0)
     {
-      if ((item = GetInternalQueue (i)->Peek ()) != 0)
-        {
-          NS_LOG_LOGIC ("Peeked from band " << i << ": " << item);
-          NS_LOG_LOGIC ("Number packets band " << i << ": " << GetInternalQueue (i)->GetNPackets ());
-          return item;
-        }
+      NS_LOG_LOGIC ("Peeked from priority queue: " << item);
+      NS_LOG_LOGIC ("Number packets priority queue: " << GetInternalPrioQueue (0)->GetNPackets ());
+      return item;
     }
 
-  NS_LOG_LOGIC ("Queue empty");
+  NS_LOG_LOGIC ("PrioQueue empty");
   return item;
 }
 
 bool
-PfifoFastQueueDisc::CheckConfig (void)
+PifoQueueDisc::CheckConfig (void)
 {
   NS_LOG_FUNCTION (this);
   if (GetNQueueDiscClasses () > 0)
     {
-      NS_LOG_ERROR ("PfifoFastQueueDisc cannot have classes");
+      NS_LOG_ERROR ("PifoQueueDisc cannot have classes");
       return false;
     }
 
-  if (GetNPacketFilters () != 0)
+  if (GetNPacketFilters () != 1)
     {
-      NS_LOG_ERROR ("PfifoFastQueueDisc needs no packet filter");
+      NS_LOG_ERROR ("PifoQueueDisc needs one packet filter");
       return false;
     }
 
-  if (GetNInternalQueues () == 0)
+  if (GetNInternalPrioQueues () == 0)
     {
-      // create 3 DropTail queues with GetLimit() packets each
+      // create one PrioQueue with GetMaxSize() packets
       ObjectFactory factory;
-      factory.SetTypeId ("ns3::DropTailQueue<QueueDiscItem>");
+      factory.SetTypeId ("ns3::PrioQueue<QueueDiscItem>");
       factory.Set ("MaxSize", QueueSizeValue (GetMaxSize ()));
-      AddInternalQueue (factory.Create<InternalQueue> ());
-      AddInternalQueue (factory.Create<InternalQueue> ());
-      AddInternalQueue (factory.Create<InternalQueue> ());
+      AddInternalPrioQueue (factory.Create<InternalPrioQueue> ());
     }
 
-  if (GetNInternalQueues () != 3)
+  if (GetNInternalPrioQueues () != 1)
     {
-      NS_LOG_ERROR ("PfifoFastQueueDisc needs 3 internal queues");
+      NS_LOG_ERROR ("PifoQueueDisc needs 1 internal priority queue");
       return false;
     }
 
-  if (GetInternalQueue (0)-> GetMaxSize ().GetUnit () != QueueSizeUnit::PACKETS ||
-      GetInternalQueue (1)-> GetMaxSize ().GetUnit () != QueueSizeUnit::PACKETS ||
-      GetInternalQueue (2)-> GetMaxSize ().GetUnit () != QueueSizeUnit::PACKETS)
+  if (GetInternalPrioQueue (0)-> GetMaxSize ().GetUnit () != QueueSizeUnit::PACKETS)
     {
-      NS_LOG_ERROR ("PfifoFastQueueDisc needs 3 internal queues operating in packet mode");
+      NS_LOG_ERROR ("PifoQueueDisc needs 1 internal priority queue operating in packet mode");
       return false;
     }
 
-  for (uint8_t i = 0; i < 2; i++)
+  if (GetInternalPrioQueue (0)->GetMaxSize () < GetMaxSize ())
     {
-      if (GetInternalQueue (i)->GetMaxSize () < GetMaxSize ())
-        {
-          NS_LOG_ERROR ("The capacity of some internal queue(s) is less than the queue disc capacity");
-          return false;
-        }
+      NS_LOG_ERROR ("The capacity of the internal priority queue is less than the queue disc capacity");
+      return false;
     }
 
   return true;
 }
 
 void
-PfifoFastQueueDisc::InitializeParams (void)
+PifoQueueDisc::InitializeParams (void)
 {
   NS_LOG_FUNCTION (this);
 }
