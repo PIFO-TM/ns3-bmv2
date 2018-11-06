@@ -1,7 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
- * Copyright (c) 2007, 2014 University of Washington
- *               2015 Universita' degli Studi di Napoli Federico II
+ * Copyright (c) 2018 Stanford University
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -16,12 +15,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Authors:  Stefano Avallone <stavallo@unina.it>
- *           Tom Henderson <tomhend@u.washington.edu>
+ * Author:  Stpehen Ibanez <sibanez@stanford.edu>
  */
 
-#ifndef PFIFO_FAST_H
-#define PFIFO_FAST_H
+#ifndef PIFO_TREE_H
+#define PIFO_TREE_H
 
 #include "ns3/queue-disc.h"
 
@@ -30,6 +28,9 @@ namespace ns3 {
 /**
  * \ingroup traffic-control
  *
+ * TODO (sibanez): detailed description ...
+ * Scheduling is performed using a tree of PIFO queue discs. 
+
  * Linux pfifo_fast is the default priority queue enabled on Linux
  * systems. Packets are enqueued in three FIFO droptail queues according
  * to three priority bands based on the packet priority.
@@ -81,4 +82,4 @@ private:
 
 } // namespace ns3
 
-#endif /* PFIFO_FAST_H */
+#endif /* PIFO_TREE_H */
