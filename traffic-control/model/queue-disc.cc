@@ -28,12 +28,14 @@
 #include "ns3/simulator.h"
 #include "queue-disc.h"
 #include <ns3/drop-tail-queue.h>
+#include <ns3/prio-queue.h>
 #include "ns3/net-device-queue-interface.h"
 
 namespace ns3 {
 
 NS_OBJECT_TEMPLATE_CLASS_DEFINE (Queue,QueueDiscItem);
 NS_OBJECT_TEMPLATE_CLASS_DEFINE (DropTailQueue,QueueDiscItem);
+NS_OBJECT_TEMPLATE_CLASS_DEFINE (PrioQueue,QueueDiscItem);
 
 NS_LOG_COMPONENT_DEFINE ("QueueDisc");
 
@@ -277,6 +279,10 @@ TypeId QueueDisc::GetTypeId (void)
                    ObjectVectorValue (),
                    MakeObjectVectorAccessor (&QueueDisc::m_queues),
                    MakeObjectVectorChecker<InternalQueue> ())
+    .AddAttribute ("InternalPrioQueueList", "The list of internal priority queues.",
+                   ObjectVectorValue (),
+                   MakeObjectVectorAccessor (&QueueDisc::m_prio_queues),
+                   MakeObjectVectorChecker<InternalPrioQueue> ())
     .AddAttribute ("PacketFilterList", "The list of packet filters.",
                    ObjectVectorValue (),
                    MakeObjectVectorAccessor (&QueueDisc::m_filters),
@@ -382,6 +388,7 @@ QueueDisc::DoDispose (void)
 {
   NS_LOG_FUNCTION (this);
   m_queues.clear ();
+  m_prio_queues.clear ();
   m_filters.clear ();
   m_classes.clear ();
   m_device = 0;
@@ -466,6 +473,12 @@ QueueDisc::GetMaxSize (void) const
           return GetInternalQueue (0)->GetMaxSize ();
         }
 
+    case QueueDiscSizePolicy::SINGLE_INTERNAL_PRIO_QUEUE:
+      if (GetNInternalPrioQueues ())
+        {
+          return GetInternalPrioQueue (0)->GetMaxSize ();
+        }
+
     case QueueDiscSizePolicy::SINGLE_CHILD_QUEUE_DISC:
       if (GetNQueueDiscClasses ())
         {
@@ -504,6 +517,12 @@ QueueDisc::SetMaxSize (QueueSize size)
       if (GetNInternalQueues ())
         {
           GetInternalQueue (0)->SetMaxSize (size);
+        }
+
+    case QueueDiscSizePolicy::SINGLE_INTERNAL_PRIO_QUEUE:
+      if (GetNInternalPrioQueues ())
+        {
+          GetInternalPrioQueue (0)->SetMaxSize (size);
         }
 
     case QueueDiscSizePolicy::SINGLE_CHILD_QUEUE_DISC:
@@ -583,6 +602,26 @@ QueueDisc::AddInternalQueue (Ptr<InternalQueue> queue)
   m_queues.push_back (queue);
 }
 
+void
+QueueDisc::AddInternalPrioQueue (Ptr<InternalPrioQueue> queue)
+{
+  NS_LOG_FUNCTION (this);
+
+  // set various callbacks on the internal prio queue, so that the queue disc is
+  // notified of packets enqueued, dequeued or dropped by the internal queue
+  queue->TraceConnectWithoutContext ("Enqueue",
+                                     MakeCallback (&QueueDisc::PacketEnqueued, this));
+  queue->TraceConnectWithoutContext ("Dequeue",
+                                     MakeCallback (&QueueDisc::PacketDequeued, this));
+  queue->TraceConnectWithoutContext ("DropBeforeEnqueue",
+                                     MakeCallback (&InternalQueueDropFunctor::operator(),
+                                                   &m_internalQueueDbeFunctor));
+  queue->TraceConnectWithoutContext ("DropAfterDequeue",
+                                     MakeCallback (&InternalQueueDropFunctor::operator(),
+                                                   &m_internalQueueDadFunctor));
+  m_prio_queues.push_back (queue);
+}
+
 Ptr<QueueDisc::InternalQueue>
 QueueDisc::GetInternalQueue (std::size_t i) const
 {
@@ -590,10 +629,23 @@ QueueDisc::GetInternalQueue (std::size_t i) const
   return m_queues[i];
 }
 
+Ptr<QueueDisc::InternalPrioQueue>
+QueueDisc::GetInternalPrioQueue (std::size_t i) const
+{
+  NS_ASSERT (i < m_prio_queues.size ());
+  return m_prio_queues[i];
+}
+
 std::size_t
 QueueDisc::GetNInternalQueues (void) const
 {
   return m_queues.size ();
+}
+
+std::size_t
+QueueDisc::GetNInternalPrioQueues (void) const
+{
+  return m_prio_queues.size ();
 }
 
 void
@@ -856,7 +908,7 @@ QueueDisc::Enqueue (Ptr<QueueDiscItem> item)
     }
 
   // DoEnqueue may return false because:
-  // 1) the internal queue is full
+  // 1) the internal queue (or priority queue) is full
   //    -> the DropBeforeEnqueue method of this queue disc is automatically called
   //       because QueueDisc::AddInternalQueue sets the trace callback
   // 2) the child queue disc dropped the packet

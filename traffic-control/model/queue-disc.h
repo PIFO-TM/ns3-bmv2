@@ -36,6 +36,7 @@ namespace ns3 {
 
 class QueueDisc;
 template <typename Item> class Queue;
+template <typename Item> class PrioQueue;
 class NetDeviceQueueInterface;
 
 /**
@@ -89,6 +90,12 @@ private:
  * yet attached to the queue disc, setting/getting this attribute involves
  * setting/getting the member variable of the queue disc; otherwise, the
  * corresponding attribute of the internal queue is set/get.
+ * - SINGLE_INTERNAL_PRIO_QUEUE is intended to handle the maxSize attribute
+ * of queue discs having a single internal priority queue. If no internal 
+ * priority queue is  yet attached to the queue disc, setting/getting this
+ * attribute involves setting/getting the member variable of the queue disc;
+ * otherwise, the corresponding attribute of the internal priority queue
+ * is set/get.
  * - SINGLE_CHILD_QUEUE_DISC is intended to handle the maxSize attribute
  * of queue discs having a single child queue disc. If no child queue disc is
  * yet attached to the queue disc, setting/getting this attribute involves
@@ -104,6 +111,7 @@ private:
 enum QueueDiscSizePolicy
 {
   SINGLE_INTERNAL_QUEUE,       /**< Used by queue discs with single internal queue */
+  SINGLE_INTERNAL_PRIO_QUEUE,  /**< Used by queue discs with single internal priority queue */
   SINGLE_CHILD_QUEUE_DISC,     /**< Used by queue discs with single child queue disc */
   MULTIPLE_QUEUES,             /**< Used by queue discs with multiple internal queues/child queue discs */
   NO_LIMITS                    /**< Used by queue discs with unlimited size */
@@ -399,11 +407,20 @@ public:
   /// Internal queues store QueueDiscItem objects
   typedef Queue<QueueDiscItem> InternalQueue;
 
+  /// Internal priority queues store QueueDiscItem objects
+  typedef PrioQueue<QueueDiscItem> InternalPrioQueue;
+
   /**
    * \brief Add an internal queue to the tail of the list of queues.
    * \param queue the queue to be added
    */
   void AddInternalQueue (Ptr<InternalQueue> queue);
+
+  /**
+   * \brief Add an internal priority queue to the tail of the list of priority queues.
+   * \param queue the priority queue to be added
+   */
+  void AddInternalPrioQueue (Ptr<InternalPrioQueue> queue);
 
   /**
    * \brief Get the i-th internal queue
@@ -413,10 +430,23 @@ public:
   Ptr<InternalQueue> GetInternalQueue (std::size_t i) const;
 
   /**
+   * \brief Get the i-th internal priority queue
+   * \param i the index of the priority queue
+   * \return the i-th internal priority queue.
+   */
+  Ptr<InternalPrioQueue> GetInternalPrioQueue (std::size_t i) const;
+
+  /**
    * \brief Get the number of internal queues
    * \return the number of internal queues.
    */
   std::size_t GetNInternalQueues (void) const;
+
+  /**
+   * \brief Get the number of internal priority queues
+   * \return the number of internal priority queues.
+   */
+  std::size_t GetNInternalPrioQueues (void) const;
 
   /**
    * \brief Add a packet filter to the tail of the list of filters used to classify packets.
@@ -660,9 +690,10 @@ private:
 
   static const uint32_t DEFAULT_QUOTA = 64; //!< Default quota (as in /proc/sys/net/core/dev_weight)
 
-  std::vector<Ptr<InternalQueue> > m_queues;    //!< Internal queues
-  std::vector<Ptr<PacketFilter> > m_filters;    //!< Packet filters
-  std::vector<Ptr<QueueDiscClass> > m_classes;  //!< Classes
+  std::vector<Ptr<InternalQueue> > m_queues;             //!< Internal queues
+  std::vector<Ptr<InternalPrioQueue> > m_prio_queues;    //!< Internal priority queues
+  std::vector<Ptr<PacketFilter> > m_filters;             //!< Packet filters
+  std::vector<Ptr<QueueDiscClass> > m_classes;           //!< Classes
 
   TracedValue<uint32_t> m_nPackets; //!< Number of packets in the queue
   TracedValue<uint32_t> m_nBytes;   //!< Number of bytes in the queue
