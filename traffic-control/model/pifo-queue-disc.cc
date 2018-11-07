@@ -88,7 +88,7 @@ PifoQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
 
   // TODO(sibanez): this is perhaps not the best way to do this, but I want to avoid
   // adding a priority tag to the packet because the priority is used for every comparison
-  Ptr<PifoQueueDiscItem> pifo_item = CreateObject<PifoQueueDiscItem> (item, rank);
+  Ptr<PifoQueueDiscItem> pifo_item = Create<PifoQueueDiscItem> (item, rank);
   bool retval = GetInternalPrioQueue (0)->Enqueue (pifo_item);
 
   // If PrioQueue::Enqueue fails, QueueDisc::DropBeforeEnqueue is called by the

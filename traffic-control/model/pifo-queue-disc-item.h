@@ -65,6 +65,18 @@ public:
   void SetPriority (uint32_t priority);
 
   /**
+   * \brief Unused method
+   */
+  virtual void AddHeader (void);
+
+  /**
+   * \brief Unused method
+   *
+   * \return false always
+   */
+  virtual bool Mark (void);
+
+  /**
    * \brief Print the item contents.
    * \param os output stream in which the data should be printed.
    */

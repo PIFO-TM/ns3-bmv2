@@ -58,6 +58,17 @@ PifoQueueDiscItem::SetPriority (uint32_t priority)
 }
 
 void
+PifoQueueDiscItem::AddHeader (void)
+{
+}
+
+bool
+PifoQueueDiscItem::Mark (void)
+{
+  return false;
+}
+
+void
 PifoQueueDiscItem::Print (std::ostream& os) const
 {
 
