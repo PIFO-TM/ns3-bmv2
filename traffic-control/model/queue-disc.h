@@ -26,6 +26,7 @@
 #include "ns3/net-device.h"
 #include "ns3/queue-item.h"
 #include "ns3/queue-size.h"
+#include "ns3/pifo-queue-disc-item.h"
 #include <vector>
 #include <map>
 #include <functional>
@@ -407,8 +408,8 @@ public:
   /// Internal queues store QueueDiscItem objects
   typedef Queue<QueueDiscItem> InternalQueue;
 
-  /// Internal priority queues store QueueDiscItem objects
-  typedef PrioQueue<QueueDiscItem> InternalPrioQueue;
+  /// Internal priority queues store PifoQueueDiscItem objects
+  typedef PrioQueue<PifoQueueDiscItem> InternalPrioQueue;
 
   /**
    * \brief Add an internal queue to the tail of the list of queues.

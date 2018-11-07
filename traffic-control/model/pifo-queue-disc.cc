@@ -24,7 +24,7 @@
 #include "ns3/prio-queue.h"
 #include "ns3/net-device-queue-interface.h"
 #include "ns3/socket.h"
-#include "pfifo-fast-queue-disc.h"
+#include "pifo-queue-disc.h"
 
 namespace ns3 {
 
@@ -74,7 +74,7 @@ PifoQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
   // Make sure to compute rank after making the drop decision otherwise
   // the state in the rank computation can become out of sync
   int32_t ret = Classify (item);
-  int32_t rank = 0;
+  int32_t rank = 0; // default rank
 
   if (ret == PacketFilter::PF_NO_MATCH)
     {
@@ -82,12 +82,14 @@ PifoQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
     }
   else
     {
-      NS_LOG_DEBUG ("Packet filters returned " << ret);
+      NS_LOG_DEBUG ("Packet filter returned " << ret);
       rank = ret;
     }
 
-  item->SetPriority(rank);
-  bool retval = GetInternalPrioQueue (0)->Enqueue (item);
+  // TODO(sibanez): this is perhaps not the best way to do this, but I want to avoid
+  // adding a priority tag to the packet because the priority is used for every comparison
+  Ptr<PifoQueueDiscItem> pifo_item = CreateObject<PifoQueueDiscItem> (item, rank);
+  bool retval = GetInternalPrioQueue (0)->Enqueue (pifo_item);
 
   // If PrioQueue::Enqueue fails, QueueDisc::DropBeforeEnqueue is called by the
   // internal prio queue because QueueDisc::AddInternalPrioQueue sets the trace callback
