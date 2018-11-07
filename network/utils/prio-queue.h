@@ -133,7 +133,7 @@ private:
    */
   struct ItemComp {
     bool operator()(const Ptr<Item> &lhs, const Ptr<Item> &rhs) const {
-      return lhs->GetPriority() < rhs->GetPriority();
+      return lhs->GetPriority() >= rhs->GetPriority();
     }
   };
 
