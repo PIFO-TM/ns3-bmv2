@@ -159,7 +159,6 @@ network/utils/pcap-file-wrapper.cc
 network/utils/pcap-file-wrapper.h
 network/utils/pcap-test.h
 network/utils/queue.cc
-network/utils/queue.h
 network/utils/queue-item.cc
 network/utils/queue-item.h
 network/utils/queue-limits.cc
