@@ -153,42 +153,17 @@ PifoQueueDiscTestCase::PifoQueueDiscTestCase ()
 {
 }
 
-class PifoItem
-{
-public:
-  PifoItem (uint64_t uid, uint32_t priority);
-  ~PifoItem ();
-  uint64_t GetUid (void);
-  int32_t GetPriority (void);
-private:
+struct PifoItem {
+  PifoItem(uint64_t uid, uint32_t priority)
+      : m_uid(uid), m_priority(priority) { }
+
   uint64_t m_uid;
   int32_t m_priority;
 };
 
-PifoItem::PifoItem (uint64_t uid, int32_t priority)
-  : m_uid (uid), m_priority(priority)
-{
-}
-
-PifoItem::~PifoItem ()
-{
-}
-
-uint64_t
-PifoItem::GetUid (void)
-{
-  return m_uid;
-}
-
-int32_t
-PifoItem::GetPriority (void)
-{
-  return m_priority;
-}
-
 struct PifoCmp {
   bool operator()(const PifoItem &lhs, const PifoItem &rhs) const {
-    return lhs.GetPriority() >= rhs.GetPriority();
+    return lhs.m_priority >= rhs.m_priority;
   }
 };
 
@@ -223,28 +198,27 @@ PifoQueueDiscTestCase::DoRun (void)
   qdisc->AddPacketFilter (pf1);
   // insert pkt
   qdisc->Enqueue (item);
-  uid_pifo.emplace(item->GetPacket ()->GetUid (), rank)
+  uid_pifo.emplace(item->GetPacket ()->GetUid (), rank);
 
-  NS_TEST_EXPECT_MSG_EQ (qdisc->->GetNPackets (),
+  NS_TEST_EXPECT_MSG_EQ (qdisc->GetNPackets (),
                          1, "There should be one packet in the queue disc");
 
   /*
    * Test 2: dequeue packets 
    */
 
-  PifoItem uid_item;
   uint64_t actual, expected;
   // NOTE: here item is no longer a Ptr<PifoQueueDiscTestItem>, it is a Ptr<PifoQueueDiscItem>
   while ((item = qdisc->Dequeue ()))
     {
       NS_TEST_ASSERT_MSG_NE(uid_pifo.size(), 0, "The uid_pifo should not be empty yet");
-      uid_item = uid_pifo.top();
-      uid_pifo.pop();
 
       actual = item->GetPacket ()->GetUid ();
-      expected = uid_item.GetUid();
+      expected = uid_pifo.top().m_uid;
 
       NS_TEST_ASSERT_MSG_EQ(actual, expected, "The actual UID " << actual << " does not match the expected UID " << expected);
+
+      uid_pifo.pop();
     }
 
   Simulator::Destroy ();
