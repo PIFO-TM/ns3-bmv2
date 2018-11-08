@@ -150,12 +150,12 @@ main (int argc, char *argv[])
   // Start the application on n0
   ApplicationContainer app = onoff.Install (n0);
   app.Start (Seconds (1.0));
-  app.Stop (Seconds (10.0));
+  app.Stop (Seconds (5.0));
 
   // Start the application on n1
   app = onoff.Install (n1);
   app.Start (Seconds (1.5));
-  app.Stop (Seconds (10.0));
+  app.Stop (Seconds (5.0));
 
   // Create an optional packet sink to receive these packets
   PacketSinkHelper sink ("ns3::UdpSocketFactory", n2Address);

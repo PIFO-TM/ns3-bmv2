@@ -183,6 +183,7 @@ PrioQueue<Item>::GetTypeId (void)
     .AddTraceSource ("DropAfterDequeue", "Drop a packet after dequeue.",
                      MakeTraceSourceAccessor (&PrioQueue<Item>::m_traceDropAfterDequeue),
                      "ns3::" + name + "::TracedCallback")
+    .template AddConstructor<PrioQueue<Item> > ()
   ;
   return tid;
 }
@@ -191,11 +192,13 @@ template <typename Item>
 PrioQueue<Item>::PrioQueue ()
   : NS_LOG_TEMPLATE_DEFINE ("PrioQueue")
 {
+  NS_LOG_FUNCTION(this);
 }
 
 template <typename Item>
 PrioQueue<Item>::~PrioQueue ()
 {
+  NS_LOG_FUNCTION(this);
 }
 
 template <typename Item>

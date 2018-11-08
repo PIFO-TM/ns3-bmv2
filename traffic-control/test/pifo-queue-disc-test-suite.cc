@@ -180,6 +180,13 @@ PifoQueueDiscTestCase::DoRun (void)
 
   // create PifoQueueDisc
   qdisc = CreateObject<PifoQueueDisc> ();
+
+  // add filter
+  Ptr<PifoQueueDiscTestFilter> pf1 = CreateObject<PifoQueueDiscTestFilter> (true);
+  int32_t rank = 10;
+  pf1->SetReturnValue(rank);
+  qdisc->AddPacketFilter (pf1);
+
   qdisc->Initialize ();
 
   NS_TEST_EXPECT_MSG_EQ (qdisc->GetNInternalPrioQueues (), 1, "Verify that there is a single internal priority queue");
@@ -191,11 +198,6 @@ PifoQueueDiscTestCase::DoRun (void)
                          0, "There should be no packets in the queue disc");
 
   item = Create<PifoQueueDiscTestItem> (Create<Packet> (100), dest);
-  // add filter
-  Ptr<PifoQueueDiscTestFilter> pf1 = CreateObject<PifoQueueDiscTestFilter> (true);
-  int32_t rank = 10;
-  pf1->SetReturnValue(rank);
-  qdisc->AddPacketFilter (pf1);
   // insert pkt
   qdisc->Enqueue (item);
   uid_pifo.emplace(item->GetPacket ()->GetUid (), rank);

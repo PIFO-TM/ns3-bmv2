@@ -28,6 +28,7 @@ def build(bld):
         'utils/crc32.cc',
         'utils/data-rate.cc',
         'utils/drop-tail-queue.cc',
+        'utils/prio-queue.cc',
         'utils/dynamic-queue-limits.cc',
         'utils/error-channel.cc',
         'utils/error-model.cc',

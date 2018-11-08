@@ -160,7 +160,7 @@ PifoQueueDisc::CheckConfig (void)
     {
       // create one PrioQueue with GetMaxSize() packets
       ObjectFactory factory;
-      factory.SetTypeId ("ns3::PrioQueue<QueueDiscItem>");
+      factory.SetTypeId ("ns3::PrioQueue<PifoQueueDiscItem>");
       factory.Set ("MaxSize", QueueSizeValue (GetMaxSize ()));
       AddInternalPrioQueue (factory.Create<InternalPrioQueue> ());
     }
