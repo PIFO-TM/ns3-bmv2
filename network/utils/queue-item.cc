@@ -78,7 +78,7 @@ QueueDiscItem::QueueDiscItem (Ptr<Packet> p, const Address& addr, uint16_t proto
     m_address (addr),
     m_protocol (protocol),
     m_txq (0),
-    m_priority (0),
+    m_priority (0)
 {
   NS_LOG_FUNCTION (this << p << addr << protocol);
 }
