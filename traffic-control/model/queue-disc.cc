@@ -30,13 +30,12 @@
 #include "ns3/drop-tail-queue.h"
 #include "ns3/prio-queue.h"
 #include "ns3/net-device-queue-interface.h"
-#include "ns3/pifo-queue-disc-item.h"
 
 namespace ns3 {
 
 NS_OBJECT_TEMPLATE_CLASS_DEFINE (Queue,QueueDiscItem);
 NS_OBJECT_TEMPLATE_CLASS_DEFINE (DropTailQueue,QueueDiscItem);
-NS_OBJECT_TEMPLATE_CLASS_DEFINE (PrioQueue,PifoQueueDiscItem);
+NS_OBJECT_TEMPLATE_CLASS_DEFINE (PrioQueue,QueueDiscItem);
 
 NS_LOG_COMPONENT_DEFINE ("QueueDisc");
 
@@ -607,8 +606,6 @@ void
 QueueDisc::AddInternalPrioQueue (Ptr<InternalPrioQueue> queue)
 {
   NS_LOG_FUNCTION (this);
-
-  // TODO(sibanez): may need to add different callbacks that accept PifoQueueDiscItems
 
   // set various callbacks on the internal prio queue, so that the queue disc is
   // notified of packets enqueued, dequeued or dropped by the internal queue

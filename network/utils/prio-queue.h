@@ -47,7 +47,7 @@ namespace ns3 {
  *
  * PrioQueue is a template class. The type of the objects stored within the priority
  * queue is specified by the type parameter, which can be any class providing a
- * GetSize () method and a GetPriority() method (e.g. PifoQueueDiscItem).
+ * GetSize () method and a GetPriority() method (e.g. QueueDiscItem).
  *
  * TODO: evaluate performance overhead of using std::priority_queue rather than std::list
  *

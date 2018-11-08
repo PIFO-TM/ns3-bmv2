@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Author:  Stephen Ibanez <sibanez@stanford.edu>
+ * Author: Stephen Ibanez <sibanez@stanford.edu>
  */
 
 #include "ns3/log.h"
@@ -86,10 +86,8 @@ PifoQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
       rank = ret;
     }
 
-  // TODO(sibanez): this is perhaps not the best way to do this, but I want to avoid
-  // adding a priority tag to the packet because the priority is used for every comparison
-  Ptr<PifoQueueDiscItem> pifo_item = Create<PifoQueueDiscItem> (item, rank);
-  bool retval = GetInternalPrioQueue (0)->Enqueue (pifo_item);
+  item->SetPriority(rank);
+  bool retval = GetInternalPrioQueue (0)->Enqueue (item);
 
   // If PrioQueue::Enqueue fails, QueueDisc::DropBeforeEnqueue is called by the
   // internal prio queue because QueueDisc::AddInternalPrioQueue sets the trace callback
@@ -160,7 +158,7 @@ PifoQueueDisc::CheckConfig (void)
     {
       // create one PrioQueue with GetMaxSize() packets
       ObjectFactory factory;
-      factory.SetTypeId ("ns3::PrioQueue<PifoQueueDiscItem>");
+      factory.SetTypeId ("ns3::PrioQueue<QueueDiscItem>");
       factory.Set ("MaxSize", QueueSizeValue (GetMaxSize ()));
       AddInternalPrioQueue (factory.Create<InternalPrioQueue> ());
     }

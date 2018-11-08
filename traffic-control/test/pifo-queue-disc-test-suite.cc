@@ -210,7 +210,6 @@ PifoQueueDiscTestCase::DoRun (void)
    */
 
   uint64_t actual, expected;
-  // NOTE: here item is no longer a Ptr<PifoQueueDiscTestItem>, it is a Ptr<PifoQueueDiscItem>
   while ((item = qdisc->Dequeue ()))
     {
       NS_TEST_ASSERT_MSG_NE(uid_pifo.size(), 0, "The uid_pifo should not be empty yet");
