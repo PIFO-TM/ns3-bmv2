@@ -1124,6 +1124,8 @@ QueueDisc::Transmit (Ptr<QueueDiscItem> item)
       SocketPriorityTag priorityTag;
       item->GetPacket ()->RemovePacketTag (priorityTag);
     }
+
+  // TODO(sibanez): if (m_node->GetObject<P4Egress>()) -> apply p4egress
   m_device->Send (item->GetPacket (), item->GetAddress (), item->GetProtocol ());
 
   // the behavior here slightly diverges from Linux. In Linux, it is advised that
