@@ -65,8 +65,18 @@ class SimplePipe : public Switch {
   void start_and_return_() override; 
 
   /**
+   * \brief Convert the NS3 packet ptr into a bmv2 pkt ptr
+   */
+  std::unique_ptr<bm:Packet> get_bm_packet(Ptr<ns3::Packet> ns3_packet);
+
+  /**
+   * \brief Convert the NS3 packet ptr into a bmv2 pkt ptr
+   */
+  Ptr<ns3::Packet> get_ns3_packet(std::unique_ptr<bm:Packet> bm_packet);
+
+  /**
    * \brief Invoke the P4 processing pipeline (parser, match-action, deparser)
    */
-  void process_pipeline(std::unique_ptr<Packet> packet, std_meta_t &std_meta);
+  std::unique_ptr<bm:Packet> process_pipeline(std::unique_ptr<bm::Packet> packet, std_meta_t &std_meta);
 };
 

@@ -60,6 +60,12 @@ public:
   Ptr<Packet> GetPacket (void) const;
 
   /**
+   * \brief Set the packet pointer
+   * \param p the new packet to use
+   */
+  virtual void SetPacket (Ptr<Packet> p);
+
+  /**
    * \brief Use this method (instead of GetPacket ()->GetSize ()) to get the packet size
    *
    * Subclasses may keep header and payload separate to allow manipulating the header,

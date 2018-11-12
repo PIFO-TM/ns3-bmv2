@@ -45,6 +45,13 @@ QueueItem::GetPacket (void) const
   return m_packet;
 }
 
+void
+QueueItem::SetPacket (Ptr<Packet> p)
+{
+  NS_LOG_FUNCTION (this << p);
+  m_packet = p;
+}
+
 uint32_t
 QueueItem::GetSize (void) const
 {
