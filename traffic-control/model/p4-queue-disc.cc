@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
- * Copyright (c) 2017 Universita' degli Studi di Napoli Federico II
+ * Copyright (c) 2018 Stanford University
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Authors:  Stefano Avallone <stavallo@unina.it>
+ * Authors: Stephen Ibanez <sibanez@stanford.edu>
  */
 
 #include "ns3/log.h"
@@ -77,20 +77,16 @@ P4QueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
 {
   NS_LOG_FUNCTION (this << item);
 
-  // convert Ptr<Packet> into std::unique_ptr<Packet>
-  std::unique_ptr<bm::Packet> bm_packet = m_p4_pipe->get_bm_packet(item->GetPacket());
-
   // create standard metadata
   std_meta_t std_meta;
-  std_meta.egress_port = 0; // TODO(sibanez): set this based on the attached NetDevice
+  std_meta.egress_port = 0; // TODO(sibanez): set this based on the attached NetDevice or using an attribute of the P4QueueDisc class
   std_meta.egress_qdepth = GetNBytes();
   std_meta.drop = 0; 
 
   // perform P4 processing
-  bm_packet = m_p4_pipe->process_pipeline(std::move(bm_packet), std_meta);
+  Ptr<Packet> new_packet = m_p4_pipe->process_pipeline(item->GetPacket(), std_meta);
 
-  // replace the packet
-  Ptr<Packet> new_packet = get_ns3_packet(bm_packet);
+  // replace the QueueDiscItem's packet
   item->SetPacket(new_packet);
 
   // drop the packet if the P4 program says to
