@@ -49,7 +49,6 @@ visualizer/*
 wave/*
 wifi/*
 wimax/*
-wscript
 
 traffic-control/bindings/*
 traffic-control/doc/*
