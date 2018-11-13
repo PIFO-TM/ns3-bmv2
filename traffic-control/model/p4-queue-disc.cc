@@ -22,6 +22,7 @@
 #include "ns3/pointer.h"
 #include "ns3/object-factory.h"
 #include "ns3/socket.h"
+#include "ns3/string.h"
 #include "ns3/p4-pipeline.h"
 #include "p4-queue-disc.h"
 #include <algorithm>
@@ -45,20 +46,21 @@ TypeId P4QueueDisc::GetTypeId (void)
   return tid;
 }
 
-P4QueueDisc::P4QueueDisc (std::string jsonFile)
+P4QueueDisc::P4QueueDisc ()
   : QueueDisc (QueueDiscSizePolicy::MULTIPLE_QUEUES, QueueSizeUnit::PACKETS)
 {
   NS_LOG_FUNCTION (this);
-  m_jsonFile = jsonFile;
+  m_jsonFile = std::string("default.json"); // TODO(sibanez): apparently constructors for NS3 objects can't accept arguements?
 
   // TODO(sibanez): create and initialize the P4 pipeline
-  m_p4Pipe = new SimpleP4Pipe(jsonFile);
+  // NOTE: may need to move pipeline creation into SetJsonFile method
+  m_p4Pipe = new SimpleP4Pipe(m_jsonFile);
 }
 
 P4QueueDisc::~P4QueueDisc ()
 {
   NS_LOG_FUNCTION (this);
-  delete m_p4_pipe;
+  delete m_p4Pipe;
 }
 
 std::string

@@ -21,24 +21,14 @@
 #ifndef P4_PIPELINE_H
 #define P4_PIPELINE_H
 
-#include <bm/bm_sim/queue.h>
 #include <bm/bm_sim/packet.h>
-#include <bm/bm_sim/parser.h>
-#include <bm/bm_sim/tables.h>
 #include <bm/bm_sim/switch.h>
-#include <bm/bm_sim/event_logger.h>
-#include <bm/bm_sim/logger.h>
 
-#include <bm/bm_runtime/bm_runtime.h>
-
-#include <unistd.h>
-
-#include <iostream>
 #include <memory>
-#include <thread>
-#include <fstream>
 #include <string>
-#include <chrono>
+
+#include "ns3/pointer.h"
+#include "ns3/packet.h"
 
 namespace ns3 {
 
@@ -61,7 +51,7 @@ class SimpleP4Pipe : public bm::Switch {
   /**
    * \brief SimplePipe constructor
    */
-  SimpleP4Pipe();
+  SimpleP4Pipe (std::string jsonFile);
 
   /**
    * \brief Unused
@@ -76,18 +66,18 @@ class SimpleP4Pipe : public bm::Switch {
   /**
    * \brief Invoke the P4 processing pipeline (parser, match-action, deparser)
    */
-  Ptr<Packet> process_pipeline(Ptr<Packet> packet, std_meta_t &std_meta);
+  Ptr<Packet> process_pipeline(Ptr<Packet> ns3_packet, std_meta_t &std_meta);
 
  private:
   /**
    * \brief Convert the NS3 packet ptr into a bmv2 pkt ptr
    */
-  std::unique_ptr<bm:Packet> get_bm_packet(Ptr<Packet> ns3_packet);
+  std::unique_ptr<bm::Packet> get_bm_packet(Ptr<Packet> ns3_packet);
 
   /**
    * \brief Convert the NS3 packet ptr into a bmv2 pkt ptr
    */
-  Ptr<Packet> get_ns3_packet(std::unique_ptr<bm:Packet> bm_packet);
+  Ptr<Packet> get_ns3_packet(std::unique_ptr<bm::Packet> bm_packet);
 };
 
 }

@@ -21,9 +21,9 @@ private:
   virtual void DoRun (void);
 };
 
-// Add some help text to this case to describe what it is intended to test
+// Testcase constructor
 P4PipelineTestCase1::P4PipelineTestCase1 ()
-  : TestCase ("P4Pipeline test case (does nothing)")
+  : TestCase ("Simple Testcase to test initialization of P4 pipeline")
 {
 }
 

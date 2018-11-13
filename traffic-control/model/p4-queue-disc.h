@@ -48,7 +48,7 @@ public:
   /**
    * \brief P4QueueDisc constructor
    */
-  P4QueueDisc (std::string jsonFile);
+  P4QueueDisc ();
 
   virtual ~P4QueueDisc();
 

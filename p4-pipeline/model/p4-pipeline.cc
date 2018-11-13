@@ -18,14 +18,12 @@
  * Authors: Stephen Ibanez <sibanez@stanford.edu>
  */
 
-#include <bm/bm_sim/queue.h>
 #include <bm/bm_sim/packet.h>
 #include <bm/bm_sim/parser.h>
 #include <bm/bm_sim/tables.h>
 #include <bm/bm_sim/switch.h>
 #include <bm/bm_sim/event_logger.h>
 #include <bm/bm_sim/logger.h>
-#include <bm/bm_sim/simple_pre.h>
 
 #include <bm/bm_runtime/bm_runtime.h>
 
@@ -33,20 +31,18 @@
 
 #include <iostream>
 #include <memory>
-#include <thread>
-#include <fstream>
 #include <string>
-#include <chrono>
 
-#include "ns3/log.h"
 #include "ns3/pointer.h"
 #include "ns3/packet.h"
 #include "p4-pipeline.h"
 
+// NOTE: do not include "ns3/log.h" because of name conflict with LOG_DEBUG
+
 namespace ns3 {
 
+
 SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile)
-  : input_buffer(1024), output_buffer(128)
 {
   add_required_field("standard_metadata", "egress_port");
   add_required_field("standard_metadata", "egress_qdepth");
@@ -56,10 +52,12 @@ SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile)
 
   // simulate command: sudo ./simple_p4_pipe <path to JSON file>
   int argc = 2;
-  char* argv[2] = {"./simple_p4_pipe", jsonFile};
+  char* argv[2] = {const_cast<char*>("./simple_p4_pipe"), const_cast<char*>(jsonFile.c_str()) };
   int status = init_from_command_line_options(argc, argv);
-  if (status != 0)
-    NS_LOG_ERROR("Failed to initialize the P4 pipeline");
+  if (status != 0) {
+    std::cout << "Failed to initialize the P4 pipeline" << std::endl;
+    std::exit(status);
+  }
 
   int thrift_port = get_runtime_port();
   bm_runtime::start_server(this, thrift_port);
@@ -67,24 +65,24 @@ SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile)
 }
 
 void
-SimpleP4Pipe::start_and_return_() override {
+SimpleP4Pipe::start_and_return_() {
 
 }
 
 int
-SimpleP4Pipe::receive_(port_t port_num, const char *buffer, int len) override
+SimpleP4Pipe::receive_(port_t port_num, const char *buffer, int len)
 {
   return 0;
 }
 
 Ptr<Packet>
-SimpleP4Pipe::process_pipeline(Ptr<Packet> packet, std_meta_t &std_meta) {
+SimpleP4Pipe::process_pipeline(Ptr<Packet> ns3_packet, std_meta_t &std_meta) {
   bm::Parser *parser = this->get_parser("parser");
   bm::Pipeline *mau = this->get_pipeline("pipe");
   bm::Deparser *deparser = this->get_deparser("deparser");
   bm::PHV *phv;
 
-  std::unique_ptr<bm::Packet> get_bm_packet(packet);
+  std::unique_ptr<bm::Packet> packet = get_bm_packet(ns3_packet);
 
   phv = packet->get_phv();
 
@@ -104,7 +102,7 @@ SimpleP4Pipe::process_pipeline(Ptr<Packet> packet, std_meta_t &std_meta) {
 
   deparser->deparse(packet.get());
 
-  return get_ns3_packet(packet);
+  return get_ns3_packet(std::move(packet));
 }
 
 std::unique_ptr<bm::Packet>
@@ -117,16 +115,16 @@ SimpleP4Pipe::get_bm_packet(Ptr<Packet> ns3_packet) {
   uint8_t* tmp_buf = new uint8_t[len];
   ns3_packet->CopyData(tmp_buf, len);
   auto bm_packet = new_packet_ptr(port_num, pkt_id++, len,
-                               bm::PacketBuffer(2048, std::static_cast<char*>(tmp_buf), len));
+                               bm::PacketBuffer(2048, (char*)(tmp_buf), len));
   delete tmp_buf;
   return bm_packet;
 }
 
 Ptr<Packet>
-SimpleP4Pipe::get_ns3_packet(std::unique_ptr<bm:Packet> bm_packet) {
+SimpleP4Pipe::get_ns3_packet(std::unique_ptr<bm::Packet> bm_packet) {
   char *bm_buf = bm_packet.get()->data();
   size_t len = bm_packet.get()->get_data_size();
-  return Create<Packet> (std::static_cast<uint8_t*>(bm_buf), len);
+  return Create<Packet> ((uint8_t*)(bm_buf), len);
 }
 
 }

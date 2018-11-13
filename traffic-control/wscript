@@ -7,7 +7,7 @@
 #     conf.check_nonfatal(header_name='stdint.h', define_name='HAVE_STDINT_H')
 
 def build(bld):
-    module = bld.create_ns3_module('traffic-control', ['core', 'network'])
+    module = bld.create_ns3_module('traffic-control', ['core', 'network', 'p4-pipeline'])
     module.source = [
       'model/traffic-control-layer.cc',
       'model/packet-filter.cc',
@@ -22,6 +22,7 @@ def build(bld):
       'model/mq-queue-disc.cc',
       'model/tbf-queue-disc.cc',
       'model/pifo-queue-disc.cc',
+      'model/p4-queue-disc.cc',
       'helper/traffic-control-helper.cc',
       'helper/queue-disc-container.cc'
         ]
@@ -56,6 +57,7 @@ def build(bld):
       'model/mq-queue-disc.h',
       'model/tbf-queue-disc.h',
       'model/pifo-queue-disc.h',
+      'model/p4-queue-disc.h',
       'helper/traffic-control-helper.h',
       'helper/queue-disc-container.h'
         ]
