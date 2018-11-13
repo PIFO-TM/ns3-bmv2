@@ -56,12 +56,12 @@ typedef struct {
  *
  * A P4 programmable pipeline.
  */
-class SimplePipe : public bm::Switch {
+class SimpleP4Pipe : public bm::Switch {
  public:
   /**
    * \brief SimplePipe constructor
    */
-  SimplePipe();
+  SimpleP4Pipe();
 
   /**
    * \brief Unused

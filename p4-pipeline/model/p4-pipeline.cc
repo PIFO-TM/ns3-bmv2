@@ -42,7 +42,7 @@
 
 namespace ns3 {
 
-SimplePipe::SimplePipe ()
+SimpleP4Pipe::SimpleP4Pipe ()
   : input_buffer(1024), output_buffer(128)
 {
   add_required_field("standard_metadata", "egress_port");
@@ -53,18 +53,18 @@ SimplePipe::SimplePipe ()
 }
 
 void
-start_and_return_() override {
+SimpleP4Pipe::start_and_return_() override {
 
 }
 
 int
-SimplePipe::receive_(port_t port_num, const char *buffer, int len) override
+SimpleP4Pipe::receive_(port_t port_num, const char *buffer, int len) override
 {
   return 0;
 }
 
 Ptr<Packet>
-SimplePipe::process_pipeline(Ptr<Packet> packet, std_meta_t &std_meta) {
+SimpleP4Pipe::process_pipeline(Ptr<Packet> packet, std_meta_t &std_meta) {
   bm::Parser *parser = this->get_parser("parser");
   bm::Pipeline *mau = this->get_pipeline("pipe");
   bm::Deparser *deparser = this->get_deparser("deparser");
@@ -94,7 +94,7 @@ SimplePipe::process_pipeline(Ptr<Packet> packet, std_meta_t &std_meta) {
 }
 
 std::unique_ptr<bm::Packet>
-SimplePipe::get_bm_packet(Ptr<Packet> ns3_packet) {
+SimpleP4Pipe::get_bm_packet(Ptr<Packet> ns3_packet) {
   static int pkt_id = 0;
 
   port_t port_num = 0; // unused
@@ -109,7 +109,7 @@ SimplePipe::get_bm_packet(Ptr<Packet> ns3_packet) {
 }
 
 Ptr<Packet>
-SimplePipe::get_ns3_packet(std::unique_ptr<bm:Packet> bm_packet) {
+SimpleP4Pipe::get_ns3_packet(std::unique_ptr<bm:Packet> bm_packet) {
   char *bm_buf = bm_packet.get()->data();
   size_t len = bm_packet.get()->get_data_size();
   return Create<Packet> (std::static_cast<uint8_t*>(bm_buf), len);

@@ -39,37 +39,52 @@ TypeId P4QueueDisc::GetTypeId (void)
     .SetParent<QueueDisc> ()
     .SetGroupName ("TrafficControl")
     .AddConstructor<P4QueueDisc> ()
-    .AddAttribute ( "P4file", "The P4 source file to use",
-                    StringValue ("nofile"), MakeStringAccessor (&P4QueueDisc::GetP4File, &P4QueueDisc::SetP4File), MakeStringChecker ())
+    .AddAttribute ( "Jsonfile", "The bmv2 JSON file to use",
+                    StringValue ("nofile"), MakeStringAccessor (&P4QueueDisc::GetJsonFile, &P4QueueDisc::SetJsonFile), MakeStringChecker ())
   ;
   return tid;
 }
 
-P4QueueDisc::P4QueueDisc ()
+P4QueueDisc::P4QueueDisc (std::string jsonFile)
   : QueueDisc (QueueDiscSizePolicy::MULTIPLE_QUEUES, QueueSizeUnit::PACKETS)
 {
   NS_LOG_FUNCTION (this);
+  m_jsonFile = jsonFile;
+
+  // TODO(sibanez): create and initialize the P4 pipeline
+  m_p4Pipe = new SimpleP4Pipe();
+  // simulate command: sudo ./simple_p4_pipe <path to JSON file>
+  int argc = 2;
+  char* argv[2] = {"./simple_p4_pipe", jsonFile};
+  int status = m_p4Pipe->init_from_command_line_options(argc, argv);
+  if (status != 0)
+    NS_LOG_ERROR("Failed to initialize the P4 pipeline"); 
+
+  int thrift_port = m_p4Pipe->get_runtime_port();
+  bm_runtime::start_server(m_p4Pipe, thrift_port);
+  m_p4Pipe->start_and_return();
 }
 
 P4QueueDisc::~P4QueueDisc ()
 {
   NS_LOG_FUNCTION (this);
+  delete m_p4_pipe;
 }
 
 std::string
-P4QueueDisc::GetP4File (void) const
+P4QueueDisc::GetJsonFile (void) const
 {
   NS_LOG_FUNCTION (this);
-  return m_p4file;
+  return m_jsonFile;
 }
 
 void
-P4QueueDisc::SetP4File (std::string p4file)
+P4QueueDisc::SetJsonFile (std::string jsonFile)
 {
-  NS_LOG_FUNCTION (this << p4file);
-  m_p4file = pfile;
+  NS_LOG_FUNCTION (this << jsonFile);
+  m_jsonFile = jsonFile;
 
-  // TODO(sibanez): initialize the P4 pipeline
+  // TODO(sibanez): perform json swap
 }
 
 bool
@@ -84,7 +99,7 @@ P4QueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
   std_meta.drop = 0; 
 
   // perform P4 processing
-  Ptr<Packet> new_packet = m_p4_pipe->process_pipeline(item->GetPacket(), std_meta);
+  Ptr<Packet> new_packet = m_p4Pipe->process_pipeline(item->GetPacket(), std_meta);
 
   // replace the QueueDiscItem's packet
   item->SetPacket(new_packet);
@@ -177,9 +192,9 @@ P4QueueDisc::CheckConfig (void)
       return false;
     }
 
-  if (m_p4file == "nofile")
+  if (m_jsonFile == "nofile")
     {
-      NS_LOG_ERROR ("P4QueueDisc is not configured with a P4 source file");
+      NS_LOG_ERROR ("P4QueueDisc is not configured with a JSON file");
       return false;
     }
 
