@@ -52,17 +52,7 @@ P4QueueDisc::P4QueueDisc (std::string jsonFile)
   m_jsonFile = jsonFile;
 
   // TODO(sibanez): create and initialize the P4 pipeline
-  m_p4Pipe = new SimpleP4Pipe();
-  // simulate command: sudo ./simple_p4_pipe <path to JSON file>
-  int argc = 2;
-  char* argv[2] = {"./simple_p4_pipe", jsonFile};
-  int status = m_p4Pipe->init_from_command_line_options(argc, argv);
-  if (status != 0)
-    NS_LOG_ERROR("Failed to initialize the P4 pipeline"); 
-
-  int thrift_port = m_p4Pipe->get_runtime_port();
-  bm_runtime::start_server(m_p4Pipe, thrift_port);
-  m_p4Pipe->start_and_return();
+  m_p4Pipe = new SimpleP4Pipe(jsonFile);
 }
 
 P4QueueDisc::~P4QueueDisc ()

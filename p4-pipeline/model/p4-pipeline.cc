@@ -38,11 +38,14 @@
 #include <string>
 #include <chrono>
 
+#include "ns3/log.h"
+#include "ns3/pointer.h"
+#include "ns3/packet.h"
 #include "p4-pipeline.h"
 
 namespace ns3 {
 
-SimpleP4Pipe::SimpleP4Pipe ()
+SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile)
   : input_buffer(1024), output_buffer(128)
 {
   add_required_field("standard_metadata", "egress_port");
@@ -50,6 +53,17 @@ SimpleP4Pipe::SimpleP4Pipe ()
   add_required_field("standard_metadata", "drop");
 
   force_arith_header("standard_metadata");
+
+  // simulate command: sudo ./simple_p4_pipe <path to JSON file>
+  int argc = 2;
+  char* argv[2] = {"./simple_p4_pipe", jsonFile};
+  int status = init_from_command_line_options(argc, argv);
+  if (status != 0)
+    NS_LOG_ERROR("Failed to initialize the P4 pipeline");
+
+  int thrift_port = get_runtime_port();
+  bm_runtime::start_server(this, thrift_port);
+  start_and_return();
 }
 
 void
