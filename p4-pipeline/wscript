@@ -19,6 +19,7 @@ def build(bld):
     module = bld.create_ns3_module('p4-pipeline', ['core', 'network'])
     module.source = [
         'model/p4-pipeline.cc',
+        'model/primitives.cc',
         'helper/p4-pipeline-helper.cc',
         ]
 
