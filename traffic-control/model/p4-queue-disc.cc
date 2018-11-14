@@ -40,7 +40,7 @@ TypeId P4QueueDisc::GetTypeId (void)
     .SetParent<QueueDisc> ()
     .SetGroupName ("TrafficControl")
     .AddConstructor<P4QueueDisc> ()
-    .AddAttribute ( "Jsonfile", "The bmv2 JSON file to use",
+    .AddAttribute ( "JsonFile", "The bmv2 JSON file to use",
                     StringValue ("nofile"), MakeStringAccessor (&P4QueueDisc::GetJsonFile, &P4QueueDisc::SetJsonFile), MakeStringChecker ())
   ;
   return tid;
@@ -50,11 +50,7 @@ P4QueueDisc::P4QueueDisc ()
   : QueueDisc (QueueDiscSizePolicy::MULTIPLE_QUEUES, QueueSizeUnit::PACKETS)
 {
   NS_LOG_FUNCTION (this);
-  m_jsonFile = std::string("default.json"); // TODO(sibanez): apparently constructors for NS3 objects can't accept arguements?
-
-  // TODO(sibanez): create and initialize the P4 pipeline
-  // NOTE: may need to move pipeline creation into SetJsonFile method
-  m_p4Pipe = new SimpleP4Pipe(m_jsonFile);
+  m_p4Pipe = NULL;
 }
 
 P4QueueDisc::~P4QueueDisc ()
@@ -76,7 +72,15 @@ P4QueueDisc::SetJsonFile (std::string jsonFile)
   NS_LOG_FUNCTION (this << jsonFile);
   m_jsonFile = jsonFile;
 
-  // TODO(sibanez): perform json swap
+  if (m_p4Pipe == NULL)
+    {
+      // create and initialize the P4 pipeline
+      m_p4Pipe = new SimpleP4Pipe(m_jsonFile);
+    }
+  else
+    {
+      // TODO(sibanez): perform json swap
+    }
 }
 
 bool
