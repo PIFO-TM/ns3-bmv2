@@ -23,6 +23,7 @@
 #include "ns3/object-factory.h"
 #include "ns3/socket.h"
 #include "ns3/string.h"
+#include "ns3/simulator.h"
 #include "ns3/p4-pipeline.h"
 #include "p4-queue-disc.h"
 #include <algorithm>
@@ -90,9 +91,9 @@ P4QueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
 
   // create standard metadata
   std_meta_t std_meta;
-  std_meta.egress_port = 0; // TODO(sibanez): set this based on the attached NetDevice or using an attribute of the P4QueueDisc class
-  std_meta.egress_qdepth = GetNBytes();
-  std_meta.drop = 0; 
+  std_meta.qdepth = GetNBytes();
+  std_meta.timestamp = Simulator::Now().GetNanoSeconds();
+  std_meta.drop = false; 
 
   // perform P4 processing
   Ptr<Packet> new_packet = m_p4Pipe->process_pipeline(item->GetPacket(), std_meta);

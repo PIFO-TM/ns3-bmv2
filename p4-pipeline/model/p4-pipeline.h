@@ -21,6 +21,8 @@
 #ifndef P4_PIPELINE_H
 #define P4_PIPELINE_H
 
+#define MAX_PKT_SIZE 2048
+
 #include <bm/bm_sim/packet.h>
 #include <bm/bm_sim/switch.h>
 
@@ -36,9 +38,9 @@ namespace ns3 {
  * \brief The standard metadata for the P4 pipeline
  */
 typedef struct {
-  int egress_port;    // input
-  int egress_qdepth;  // input
-  bool drop;          // output
+  int qdepth;          // input
+  int64_t timestamp;   // input
+  bool drop;           // output
 } std_meta_t;
 
 /**
@@ -78,6 +80,10 @@ class SimpleP4Pipe : public bm::Switch {
    * \brief Convert the NS3 packet ptr into a bmv2 pkt ptr
    */
   Ptr<Packet> get_ns3_packet(std::unique_ptr<bm::Packet> bm_packet);
+
+ private:
+  static packet_id_t packet_id;
+  static uint8_t ns2bm_buf[MAX_PKT_SIZE];
 };
 
 }
