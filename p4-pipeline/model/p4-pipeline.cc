@@ -21,6 +21,9 @@
 #include <bm/bm_sim/parser.h>
 #include <bm/bm_sim/tables.h>
 #include <bm/bm_sim/logger.h>
+#include <bm/bm_sim/event_logger.h>
+#include <bm/bm_runtime/bm_runtime.h>
+#include <bm/bm_sim/options_parse.h>
 
 #include <unistd.h>
 
@@ -31,6 +34,10 @@
 #include "p4-pipeline.h"
 
 // NOTE: do not include "ns3/log.h" because of name conflict with LOG_DEBUG
+
+#define PACKET_LENGTH_REG_IDX 0
+
+extern int import_primitives();
 
 namespace ns3 {
 
@@ -66,9 +73,9 @@ struct bmv2_hash {
 REGISTER_HASH(hash_ex);
 REGISTER_HASH(bmv2_hash);
 
-extern int import_primitives();
-
-packet_id_t SimpleP4Pipe::packet_id = 0;
+// initialize static attributes
+bm::packet_id_t SimpleP4Pipe::packet_id = 0;
+uint8_t SimpleP4Pipe::ns2bm_buf[MAX_PKT_SIZE] = {};
 
 SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile)
 {
@@ -136,8 +143,6 @@ SimpleP4Pipe::process_pipeline(Ptr<Packet> ns3_packet, std_meta_t &std_meta) {
   // each add_header / remove_header primitive call
   packet->set_register(PACKET_LENGTH_REG_IDX, len);
   phv->get_field("standard_metadata.packet_length").set(len);
-  Field &f_instance_type = phv->get_field("standard_metadata.instance_type");
-  f_instance_type.set(PKT_INSTANCE_TYPE_NORMAL);
 
   if (phv->has_field("intrinsic_metadata.ingress_global_timestamp"))
     phv->get_field("intrinsic_metadata.ingress_global_timestamp")

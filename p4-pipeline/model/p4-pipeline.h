@@ -82,7 +82,7 @@ class SimpleP4Pipe : public bm::Switch {
   Ptr<Packet> get_ns3_packet(std::unique_ptr<bm::Packet> bm_packet);
 
  private:
-  static packet_id_t packet_id;
+  static bm::packet_id_t packet_id;
   static uint8_t ns2bm_buf[MAX_PKT_SIZE];
 };
 
