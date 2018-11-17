@@ -93,6 +93,7 @@ P4QueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
   std_meta_t std_meta;
   std_meta.qdepth = GetNBytes();
   std_meta.timestamp = Simulator::Now().GetNanoSeconds();
+  std_meta.pkt_len = item->GetSize();
   std_meta.drop = false; 
 
   // perform P4 processing

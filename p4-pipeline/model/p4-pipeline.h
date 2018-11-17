@@ -40,6 +40,7 @@ namespace ns3 {
 typedef struct {
   int qdepth;          // input
   int64_t timestamp;   // input
+  uint32_t pkt_len;    // input
   bool drop;           // output
 } std_meta_t;
 

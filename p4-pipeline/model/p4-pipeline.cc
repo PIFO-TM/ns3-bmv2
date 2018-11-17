@@ -99,6 +99,10 @@ SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile)
   bm::OptionsParser opt_parser;
   opt_parser.config_file_path = jsonFile;
   opt_parser.thrift_port = 9090; // Default thrift port
+  opt_parser.debugger_addr = std::string("ipc:///tmp/bmv2-0-debug.ipc");
+  opt_parser.notifications_addr = std::string("ipc:///tmp/bmv2-0-notifications.ipc");
+  opt_parser.console_logging = true;
+//  opt_parser.file_logger = std::string("");
 
   int status = init_from_options_parser(opt_parser);
   if (status != 0) {
@@ -109,6 +113,13 @@ SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile)
   int thrift_port = get_runtime_port();
   bm_runtime::start_server(this, thrift_port);
   start_and_return();
+
+  // TODO(sibanez): add new constructor arg (std::string commandsFile)
+  // Open new process to mimic the following command:
+  /*
+       subprocess.Popen(['simple_switch_CLI', '--thrift-port', str(thrift_port)],
+                        stdin=fin, stdout=fout)
+   */
 }
 
 void
@@ -130,6 +141,7 @@ SimpleP4Pipe::process_pipeline(Ptr<Packet> ns3_packet, std_meta_t &std_meta) {
   bm::PHV *phv;
 
   int len = ns3_packet->GetSize();
+  std::cout << "=========== START P4-PIPELINE: pkt_len = " << len << std::endl;
   auto packet = get_bm_packet(ns3_packet);
 
   BMELOG(packet_in, *packet);
@@ -142,7 +154,7 @@ SimpleP4Pipe::process_pipeline(Ptr<Packet> ns3_packet, std_meta_t &std_meta) {
   // using packet register 0 to store length, this register will be updated for
   // each add_header / remove_header primitive call
   packet->set_register(PACKET_LENGTH_REG_IDX, len);
-  phv->get_field("standard_metadata.packet_length").set(len);
+  phv->get_field("standard_metadata.packet_length").set(std_meta.pkt_len);
 
   if (phv->has_field("intrinsic_metadata.ingress_global_timestamp"))
     phv->get_field("intrinsic_metadata.ingress_global_timestamp")
@@ -201,6 +213,7 @@ Ptr<Packet>
 SimpleP4Pipe::get_ns3_packet(std::unique_ptr<bm::Packet> bm_packet) {
   char *bm_buf = bm_packet.get()->data();
   size_t len = bm_packet.get()->get_data_size();
+  std::cout << "=========== END P4-PIPELINE: pkt_len = " << len << std::endl;
   return Create<Packet> ((uint8_t*)(bm_buf), len);
 }
 
