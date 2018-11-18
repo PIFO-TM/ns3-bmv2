@@ -30,6 +30,8 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <chrono>
+#include <thread>
 
 #include "p4-pipeline.h"
 
@@ -108,11 +110,10 @@ SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile, std::string commandsFile)
   opt_parser.notifications_addr = std::string("ipc:///tmp/bmv2-") +
                              std::to_string(thrift_port) +
                              std::string("-notifications.ipc");
-  opt_parser.thrift_port = thrift_port++;
-//  opt_parser.console_logging = true;
   opt_parser.file_logger = std::string("/tmp/bmv2-") +
                              std::to_string(thrift_port) +
                              std::string("-pipeline.log");
+  opt_parser.thrift_port = thrift_port++;
 
   int status = init_from_options_parser(opt_parser);
   if (status != 0) {
@@ -125,8 +126,8 @@ SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile, std::string commandsFile)
   start_and_return();
 
   // Run the CLI commands to populate table entries
-  std::system("run_simple_switch_CLI --thrift_port " +
-                std::to_string(port) + " " + commandsFile);
+  std::string cmd = "run_simple_switch_CLI --thrift_port " + std::to_string(port) + " " + commandsFile;
+  std::system (cmd.c_str());
 
 }
 

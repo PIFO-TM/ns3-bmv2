@@ -112,9 +112,10 @@ main (int argc, char *argv[])
 
   TrafficControlHelper tch;
   //tch.SetRootQueueDisc ("ns3::PfifoFastQueueDisc");
-  tch.SetRootQueueDisc ("ns3::P4QueueDisc", "JsonFile", StringValue("src/traffic-control/examples/p4-src/basic-test.json"));
-//  uint16_t handle = tch.SetRootQueueDisc ("ns3::P4QueueDisc");
-//  tch.AddInternalQueues (handle, 3, "ns3::DropTailQueue", "MaxSize", StringValue ("1000p"));
+  tch.SetRootQueueDisc ("ns3::P4QueueDisc",
+                        "JsonFile", StringValue("src/traffic-control/examples/p4-src/basic-test.json"),
+                        "CommandsFile", StringValue("src/traffic-control/examples/p4-src/commands.txt")
+                        );
 
   // Install Queue Disc on the router interface towards n2
   QueueDiscContainer qdiscs = tch.Install (rDevice);

@@ -57,7 +57,7 @@ class SimpleP4Pipe : public bm::Switch {
   /**
    * \brief SimplePipe constructor
    */
-  SimpleP4Pipe (std::string jsonFile);
+  SimpleP4Pipe (std::string jsonFile, std::string commandsFile);
 
   /**
    * \brief Unused

@@ -42,9 +42,9 @@ TypeId P4QueueDisc::GetTypeId (void)
     .SetGroupName ("TrafficControl")
     .AddConstructor<P4QueueDisc> ()
     .AddAttribute ( "JsonFile", "The bmv2 JSON file to use",
-                    StringValue ("nofile"), MakeStringAccessor (&P4QueueDisc::GetJsonFile, &P4QueueDisc::SetJsonFile), MakeStringChecker ())
+                    StringValue (""), MakeStringAccessor (&P4QueueDisc::GetJsonFile, &P4QueueDisc::SetJsonFile), MakeStringChecker ())
     .AddAttribute ( "CommandsFile", "A file with CLI commands to run on the P4 pipeline before starting the simulation",
-                    StringValue ("nofile"), MakeStringAccessor (&P4QueueDisc::GetJsonFile, &P4QueueDisc::SetJsonFile), MakeStringChecker ())
+                    StringValue (""), MakeStringAccessor (&P4QueueDisc::GetCommandsFile, &P4QueueDisc::SetCommandsFile), MakeStringChecker ())
   ;
   return tid;
 }
@@ -75,7 +75,7 @@ P4QueueDisc::SetJsonFile (std::string jsonFile)
   NS_LOG_FUNCTION (this << jsonFile);
   m_jsonFile = jsonFile;
 
-  if (m_p4Pipe == NULL && m_commandsFile != "nofile")
+  if (m_p4Pipe == NULL && m_commandsFile != "")
     {
       // create and initialize the P4 pipeline
       m_p4Pipe = new SimpleP4Pipe(m_jsonFile, m_commandsFile);
@@ -95,7 +95,7 @@ P4QueueDisc::SetCommandsFile (std::string commandsFile)
   NS_LOG_FUNCTION (this << commandsFile);
   m_commandsFile = commandsFile;
 
-  if (m_p4Pipe == NULL && m_jsonFile != "nofile")
+  if (m_p4Pipe == NULL && m_jsonFile != "")
     {
       // create and initialize the P4 pipeline
       m_p4Pipe = new SimpleP4Pipe(m_jsonFile, m_commandsFile);
@@ -215,13 +215,13 @@ P4QueueDisc::CheckConfig (void)
       return false;
     }
 
-  if (m_jsonFile == "nofile")
+  if (m_jsonFile == "")
     {
       NS_LOG_ERROR ("P4QueueDisc is not configured with a JSON file");
       return false;
     }
 
-  if (m_commandsFile == "nofile")
+  if (m_commandsFile == "")
     {
       NS_LOG_ERROR ("P4QueueDisc is not configured with a CLI commands file");
       return false;
