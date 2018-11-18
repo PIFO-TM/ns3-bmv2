@@ -26,7 +26,7 @@
 #include <bm/bm_sim/options_parse.h>
 
 #include <unistd.h>
-
+#include <cstdlib>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -74,10 +74,11 @@ REGISTER_HASH(hash_ex);
 REGISTER_HASH(bmv2_hash);
 
 // initialize static attributes
+int SimpleP4Pipe::thrift_port = 9090;
 bm::packet_id_t SimpleP4Pipe::packet_id = 0;
 uint8_t SimpleP4Pipe::ns2bm_buf[MAX_PKT_SIZE] = {};
 
-SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile)
+SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile, std::string commandsFile)
 {
 
   add_required_field("standard_metadata", "ingress_port");
@@ -88,6 +89,9 @@ SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile)
   add_required_field("standard_metadata", "egress_port");
   // Additional fields
   add_required_field("standard_metadata", "drop");
+  add_required_field("standard_metadata", "mark");
+  add_required_field("standard_metadata", "l3_proto");
+  add_required_field("standard_metadata", "flow_hash");
 
   force_arith_header("standard_metadata");
   force_arith_header("queueing_metadata");
@@ -98,11 +102,17 @@ SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile)
   // Initialize the switch
   bm::OptionsParser opt_parser;
   opt_parser.config_file_path = jsonFile;
-  opt_parser.thrift_port = 9090; // Default thrift port
-  opt_parser.debugger_addr = std::string("ipc:///tmp/bmv2-0-debug.ipc");
-  opt_parser.notifications_addr = std::string("ipc:///tmp/bmv2-0-notifications.ipc");
-  opt_parser.console_logging = true;
-//  opt_parser.file_logger = std::string("");
+  opt_parser.debugger_addr = std::string("ipc:///tmp/bmv2-") +
+                             std::to_string(thrift_port) +
+                             std::string("-debug.ipc");
+  opt_parser.notifications_addr = std::string("ipc:///tmp/bmv2-") +
+                             std::to_string(thrift_port) +
+                             std::string("-notifications.ipc");
+  opt_parser.thrift_port = thrift_port++;
+//  opt_parser.console_logging = true;
+  opt_parser.file_logger = std::string("/tmp/bmv2-") +
+                             std::to_string(thrift_port) +
+                             std::string("-pipeline.log");
 
   int status = init_from_options_parser(opt_parser);
   if (status != 0) {
@@ -110,16 +120,14 @@ SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile)
     std::exit(status);
   }
 
-  int thrift_port = get_runtime_port();
-  bm_runtime::start_server(this, thrift_port);
+  int port = get_runtime_port();
+  bm_runtime::start_server(this, port);
   start_and_return();
 
-  // TODO(sibanez): add new constructor arg (std::string commandsFile)
-  // Open new process to mimic the following command:
-  /*
-       subprocess.Popen(['simple_switch_CLI', '--thrift-port', str(thrift_port)],
-                        stdin=fin, stdout=fout)
-   */
+  // Run the CLI commands to populate table entries
+  std::system("run_simple_switch_CLI --thrift_port " +
+                std::to_string(port) + " " + commandsFile);
+
 }
 
 void
@@ -141,7 +149,6 @@ SimpleP4Pipe::process_pipeline(Ptr<Packet> ns3_packet, std_meta_t &std_meta) {
   bm::PHV *phv;
 
   int len = ns3_packet->GetSize();
-  std::cout << "=========== START P4-PIPELINE: pkt_len = " << len << std::endl;
   auto packet = get_bm_packet(ns3_packet);
 
   BMELOG(packet_in, *packet);
@@ -155,6 +162,8 @@ SimpleP4Pipe::process_pipeline(Ptr<Packet> ns3_packet, std_meta_t &std_meta) {
   // each add_header / remove_header primitive call
   packet->set_register(PACKET_LENGTH_REG_IDX, len);
   phv->get_field("standard_metadata.packet_length").set(std_meta.pkt_len);
+  phv->get_field("standard_metadata.l3_proto").set(std_meta.l3_proto);
+  phv->get_field("standard_metadata.flow_hash").set(std_meta.flow_hash);
 
   if (phv->has_field("intrinsic_metadata.ingress_global_timestamp"))
     phv->get_field("intrinsic_metadata.ingress_global_timestamp")
@@ -179,13 +188,17 @@ SimpleP4Pipe::process_pipeline(Ptr<Packet> ns3_packet, std_meta_t &std_meta) {
 
   packet->reset_exit();
 
-  int drop = phv->get_field("standard_metadata.drop").get_int();
-  BMLOG_DEBUG_PKT(*packet, "Drop field is {}", drop);
-
-  std_meta.drop = (drop != 0);
-
   /* Invoke Deparser */
   deparser->deparse(packet.get());
+
+  /* Set drop and mark fields */
+  int drop = phv->get_field("standard_metadata.drop").get_int();
+  BMLOG_DEBUG_PKT(*packet, "Drop field is {}", drop);
+  std_meta.drop = (drop != 0);
+
+  int mark = phv->get_field("standard_metadata.mark").get_int();
+  BMLOG_DEBUG_PKT(*packet, "Mark field is {}", mark);
+  std_meta.mark = (mark != 0);
 
   BMELOG(packet_out, *packet);
   BMLOG_DEBUG_PKT(*packet, "Transmitting packet of size {}",
@@ -213,7 +226,6 @@ Ptr<Packet>
 SimpleP4Pipe::get_ns3_packet(std::unique_ptr<bm::Packet> bm_packet) {
   char *bm_buf = bm_packet.get()->data();
   size_t len = bm_packet.get()->get_data_size();
-  std::cout << "=========== END P4-PIPELINE: pkt_len = " << len << std::endl;
   return Create<Packet> ((uint8_t*)(bm_buf), len);
 }
 

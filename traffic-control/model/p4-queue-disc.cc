@@ -43,6 +43,8 @@ TypeId P4QueueDisc::GetTypeId (void)
     .AddConstructor<P4QueueDisc> ()
     .AddAttribute ( "JsonFile", "The bmv2 JSON file to use",
                     StringValue ("nofile"), MakeStringAccessor (&P4QueueDisc::GetJsonFile, &P4QueueDisc::SetJsonFile), MakeStringChecker ())
+    .AddAttribute ( "CommandsFile", "A file with CLI commands to run on the P4 pipeline before starting the simulation",
+                    StringValue ("nofile"), MakeStringAccessor (&P4QueueDisc::GetJsonFile, &P4QueueDisc::SetJsonFile), MakeStringChecker ())
   ;
   return tid;
 }
@@ -73,14 +75,30 @@ P4QueueDisc::SetJsonFile (std::string jsonFile)
   NS_LOG_FUNCTION (this << jsonFile);
   m_jsonFile = jsonFile;
 
-  if (m_p4Pipe == NULL)
+  if (m_p4Pipe == NULL && m_commandsFile != "nofile")
     {
       // create and initialize the P4 pipeline
-      m_p4Pipe = new SimpleP4Pipe(m_jsonFile);
+      m_p4Pipe = new SimpleP4Pipe(m_jsonFile, m_commandsFile);
     }
-  else
+}
+
+std::string
+P4QueueDisc::GetCommandsFile (void) const
+{
+  NS_LOG_FUNCTION (this);
+  return m_commandsFile;
+}
+
+void
+P4QueueDisc::SetCommandsFile (std::string commandsFile)
+{
+  NS_LOG_FUNCTION (this << commandsFile);
+  m_commandsFile = commandsFile;
+
+  if (m_p4Pipe == NULL && m_jsonFile != "nofile")
     {
-      // TODO(sibanez): perform json swap
+      // create and initialize the P4 pipeline
+      m_p4Pipe = new SimpleP4Pipe(m_jsonFile, m_commandsFile);
     }
 }
 
@@ -94,7 +112,10 @@ P4QueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
   std_meta.qdepth = GetNBytes();
   std_meta.timestamp = Simulator::Now().GetNanoSeconds();
   std_meta.pkt_len = item->GetSize();
+  std_meta.l3_proto = item->GetProtocol();
+  std_meta.flow_hash = item->Hash(); //TODO(sibanez): include perturbation?
   std_meta.drop = false; 
+  std_meta.mark = false; 
 
   // perform P4 processing
   Ptr<Packet> new_packet = m_p4Pipe->process_pipeline(item->GetPacket(), std_meta);
@@ -102,12 +123,16 @@ P4QueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
   // replace the QueueDiscItem's packet
   item->SetPacket(new_packet);
 
-  // drop the packet if the P4 program says to
   if (std_meta.drop)
     {
       NS_LOG_DEBUG ("Dropping packet because P4 program said to");
       DropBeforeEnqueue (item, P4_DROP);
       return false;
+    }
+  if (std_meta.mark)
+    {
+      NS_LOG_DEBUG ("Marking packet because P4 program said to");
+      item->Mark();
     }
 
   bool retval = GetQueueDiscClass (0)->GetQueueDisc ()->Enqueue (item);
@@ -193,6 +218,12 @@ P4QueueDisc::CheckConfig (void)
   if (m_jsonFile == "nofile")
     {
       NS_LOG_ERROR ("P4QueueDisc is not configured with a JSON file");
+      return false;
+    }
+
+  if (m_commandsFile == "nofile")
+    {
+      NS_LOG_ERROR ("P4QueueDisc is not configured with a CLI commands file");
       return false;
     }
 
