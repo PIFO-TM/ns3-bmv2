@@ -80,7 +80,7 @@ int SimpleP4Pipe::thrift_port = 9090;
 bm::packet_id_t SimpleP4Pipe::packet_id = 0;
 uint8_t SimpleP4Pipe::ns2bm_buf[MAX_PKT_SIZE] = {};
 
-SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile, std::string commandsFile)
+SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile)
 {
 
   add_required_field("standard_metadata", "ingress_port");
@@ -125,10 +125,14 @@ SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile, std::string commandsFile)
   bm_runtime::start_server(this, port);
   start_and_return();
 
-  // Run the CLI commands to populate table entries
-  std::string cmd = "run_simple_switch_CLI --thrift_port " + std::to_string(port) + " " + commandsFile;
-  std::system (cmd.c_str());
+}
 
+void
+SimpleP4Pipe::run_cli(std::string commandsFile) {
+  int port = thrift_port - 1; // was incremented in the constructor
+  // Run the CLI commands to populate table entries
+  std::string cmd = "run_bmv2_CLI --thrift_port " + std::to_string(port) + " " + commandsFile;
+  std::system (cmd.c_str());
 }
 
 void

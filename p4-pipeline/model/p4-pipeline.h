@@ -57,7 +57,12 @@ class SimpleP4Pipe : public bm::Switch {
   /**
    * \brief SimplePipe constructor
    */
-  SimpleP4Pipe (std::string jsonFile, std::string commandsFile);
+  SimpleP4Pipe (std::string jsonFile);
+
+  /**
+   * \brief Run the provided CLI commands to populate table entries
+   */
+  void run_cli(std::string commandsFile);
 
   /**
    * \brief Unused

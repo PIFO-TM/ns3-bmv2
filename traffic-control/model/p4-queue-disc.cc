@@ -78,7 +78,8 @@ P4QueueDisc::SetJsonFile (std::string jsonFile)
   if (m_p4Pipe == NULL && m_commandsFile != "")
     {
       // create and initialize the P4 pipeline
-      m_p4Pipe = new SimpleP4Pipe(m_jsonFile, m_commandsFile);
+      m_p4Pipe = new SimpleP4Pipe (m_jsonFile);
+      m_p4Pipe->run_cli (m_commandsFile);
     }
 }
 
@@ -98,7 +99,8 @@ P4QueueDisc::SetCommandsFile (std::string commandsFile)
   if (m_p4Pipe == NULL && m_jsonFile != "")
     {
       // create and initialize the P4 pipeline
-      m_p4Pipe = new SimpleP4Pipe(m_jsonFile, m_commandsFile);
+      m_p4Pipe = new SimpleP4Pipe(m_jsonFile);
+      m_p4Pipe->run_cli (m_commandsFile);
     }
 }
 

@@ -5,7 +5,7 @@ import subprocess
 import argparse
 
 def run_CLI(thrift_port, cli_input_commands, log_dir):
-    cli = 'simple_switch_CLI'
+    cli = 'runtime_CLI'
     print 'Configuring bmv2 pipeline on port {} with file {}'.format(thrift_port, cli_input_commands)
     with open(cli_input_commands, 'r') as fin:
         cli_outfile = os.path.join(log_dir, 'bmv2-{}-cli-output.log'.format(thrift_port))
