@@ -28,6 +28,8 @@
 #include "p4-queue-disc.h"
 #include <algorithm>
 #include <iterator>
+#include <chrono>
+#include <thread>
 
 namespace ns3 {
 

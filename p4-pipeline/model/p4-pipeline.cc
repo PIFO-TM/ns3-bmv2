@@ -121,15 +121,16 @@ SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile)
     std::exit(status);
   }
 
-  int port = get_runtime_port();
-  bm_runtime::start_server(this, port);
-  start_and_return();
-
 }
 
 void
 SimpleP4Pipe::run_cli(std::string commandsFile) {
-  int port = thrift_port - 1; // was incremented in the constructor
+  int port = get_runtime_port();
+  bm_runtime::start_server(this, port);
+  start_and_return();
+
+  std::this_thread::sleep_for(std::chrono::seconds(10));
+
   // Run the CLI commands to populate table entries
   std::string cmd = "run_bmv2_CLI --thrift_port " + std::to_string(port) + " " + commandsFile;
   std::system (cmd.c_str());
