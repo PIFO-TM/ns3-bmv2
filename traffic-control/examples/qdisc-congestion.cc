@@ -39,11 +39,78 @@
 #include "ns3/internet-module.h"
 #include "ns3/flow-monitor-helper.h"
 #include "ns3/traffic-control-module.h"
+#include "ns3/packet-filter.h"
 
 using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("RouterCongestion");
 
+//-------------------------------------------------------//
+//------------- PifoQueueDiscTestFilter -----------------//
+//-------------------------------------------------------//
+
+/**
+ * \ingroup traffic-control-test
+ * \ingroup tests
+ *
+ * \brief Pifo Queue Disc Test Packet Filter
+ */
+class PifoQueueDiscTestFilter : public PacketFilter
+{
+public:
+  /**
+   * Constructor
+   *
+   * \param cls whether this filter is able to classify a PifoQueueDiscTestItem
+   */
+  PifoQueueDiscTestFilter (bool cls);
+  virtual ~PifoQueueDiscTestFilter ();
+  /**
+   * \brief Set the value returned by DoClassify
+   *
+   * \param ret the value that DoClassify returns
+   */
+  void SetReturnValue (int32_t ret);
+
+private:
+  virtual bool CheckProtocol (Ptr<QueueDiscItem> item) const;
+  virtual int32_t DoClassify (Ptr<QueueDiscItem> item) const;
+
+  bool m_cls;     //!< whether this filter is able to classify a PifoQueueDiscTestItem
+  int32_t m_ret;  //!< the value that DoClassify returns if m_cls is true
+};
+
+PifoQueueDiscTestFilter::PifoQueueDiscTestFilter (bool cls)
+  : m_cls (cls),
+    m_ret (0)
+{
+}
+
+PifoQueueDiscTestFilter::~PifoQueueDiscTestFilter ()
+{
+}
+
+void
+PifoQueueDiscTestFilter::SetReturnValue (int32_t ret)
+{
+  m_ret = ret;
+}
+
+bool
+PifoQueueDiscTestFilter::CheckProtocol (Ptr<QueueDiscItem> item) const
+{
+  return m_cls;
+}
+
+int32_t
+PifoQueueDiscTestFilter::DoClassify (Ptr<QueueDiscItem> item) const
+{
+  return m_ret;
+}
+
+//-------------------------------------------------//
+//------------- trace callbacks -------------------//
+//-------------------------------------------------//
 void
 TcBytesInQueueTrace (Ptr<OutputStreamWrapper> stream, uint32_t oldValue, uint32_t newValue)
 {
@@ -111,7 +178,7 @@ main (int argc, char *argv[])
   internet.Install (NodeContainer (n0, n1, n2, router));
 
   TrafficControlHelper tch;
-  tch.SetRootQueueDisc ("ns3::PfifoFastQueueDisc");
+  tch.SetRootQueueDisc ("ns3::PifoQueueDisc");
 //  uint16_t handle = tch.SetRootQueueDisc ("ns3::PfifoFastQueueDisc");
 //  tch.AddInternalQueues (handle, 3, "ns3::DropTailQueue", "MaxSize", StringValue ("1000p"));
 
