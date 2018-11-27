@@ -325,12 +325,12 @@ main (int argc, char *argv[])
   Config::SetDefault ("ns3::RedQueueDisc::MinTh", DoubleValue (5));
   Config::SetDefault ("ns3::RedQueueDisc::MaxTh", DoubleValue (15));
 
-  if (redTest == 3) // test like 1, but with bad params
+  if (testNum == 3) // test like 1, but with bad params
     {
       Config::SetDefault ("ns3::RedQueueDisc::MaxTh", DoubleValue (10));
       Config::SetDefault ("ns3::RedQueueDisc::QW", DoubleValue (0.003));
     }
-  else if (redTest == 5) // test 5, same as test 4, but in byte mode
+  else if (testNum == 5) // test 5, same as test 4, but in byte mode
     {
       Config::SetDefault ("ns3::RedQueueDisc::MaxSize",
                           QueueSizeValue (QueueSize (QueueSizeUnit::BYTES, 1000 * meanPktSize)));
@@ -406,7 +406,7 @@ main (int argc, char *argv[])
   // Set up the routing
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
-  if (redTest == 5) 
+  if (testNum == 5) 
     {
       // like in ns2 test, r2 -> r1, have a queue in packet mode
       Ptr<QueueDisc> queue = queueDiscs.Get (1);
