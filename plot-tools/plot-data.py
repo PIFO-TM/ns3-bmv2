@@ -6,7 +6,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 import sys, os, argparse
 
 def line_gen():
-    lines = ['-', '--', '-.', ':']
+    lines = ['-', '--', '-.', '', ':']
     i = 0
     while True:
         yield lines[i]
@@ -16,7 +16,7 @@ def line_gen():
 line_generator = line_gen()
 
 def color_gen():
-    colors = ['b', 'g', 'c', 'r']
+    colors = ['b', 'g', 'c', 'm']
     i = 0
     while True:
         yield colors[i]
@@ -24,6 +24,16 @@ def color_gen():
         i = i % len(colors)
 
 color_generator = color_gen()
+
+def marker_gen():
+    markers = ['', '', '', 'x']
+    i = 0
+    while True:
+        yield markers[i]
+        i += 1
+        i = i % len(markers)
+
+marker_generator = marker_gen()
 
 def read_data(data_file):
     xdata = []
@@ -40,7 +50,7 @@ def read_data(data_file):
 
 def plot_data(data_file, label):
     xdata, ydata = read_data(data_file)
-    plt.plot(xdata, ydata, label=label, linestyle=line_generator.next(), color=color_generator.next(), linewidth=3)
+    plt.plot(xdata, ydata, label=label, linestyle=line_generator.next(), color=color_generator.next(), marker=marker_generator.next(), linewidth=3, markersize=12)
 
 def main():
     parser = argparse.ArgumentParser()

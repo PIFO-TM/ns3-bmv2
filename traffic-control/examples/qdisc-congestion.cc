@@ -72,7 +72,7 @@ Ipv4InterfaceContainer i2i3;
 Ipv4InterfaceContainer i3i4;
 Ipv4InterfaceContainer i3i5;
 
-std::stringstream filePlotQueue;
+//std::stringstream filePlotQueue;
 std::stringstream filePlotQueueAvg;
 
 std::string pathOut;
@@ -97,9 +97,9 @@ CheckQueueSize (Ptr<QueueDisc> queue)
   // check queue size every 1/100 of a second
   Simulator::Schedule (Seconds (0.01), &CheckQueueSize, queue);
 
-  std::ofstream fPlotQueue (filePlotQueue.str ().c_str (), std::ios::out|std::ios::app);
-  fPlotQueue << Simulator::Now ().GetSeconds () << " " << qSize << std::endl;
-  fPlotQueue.close ();
+//  std::ofstream fPlotQueue (filePlotQueue.str ().c_str (), std::ios::out|std::ios::app);
+//  fPlotQueue << Simulator::Now ().GetSeconds () << " " << qSize << std::endl;
+//  fPlotQueue.close ();
 
   std::ofstream fPlotQueueAvg (filePlotQueueAvg.str ().c_str (), std::ios::out|std::ios::app);
   fPlotQueueAvg << Simulator::Now ().GetSeconds () << " " << avgQueueSize / checkTimes << std::endl;
@@ -107,9 +107,21 @@ CheckQueueSize (Ptr<QueueDisc> queue)
 }
 
 void
-EwmaQueueSizeTrace (Ptr<OutputStreamWrapper> stream, double oldValue, double newValue)
+InstQueueSizeTrace (Ptr<OutputStreamWrapper> stream, uint32_t oldValue, uint32_t newValue)
 {
   *stream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << newValue << std::endl;
+}
+
+void
+EwmaQueueSizeTrace (Ptr<OutputStreamWrapper> stream, double oldValue, double newValue)
+{
+  *stream->GetStream () << Simulator::Now ().GetSeconds () << " " << newValue << std::endl;
+}
+
+void
+TcDropTrace (Ptr<OutputStreamWrapper> stream, Ptr<const QueueDiscItem> item)
+{
+  *stream->GetStream () << Simulator::Now ().GetSeconds () << " " << 0 << std::endl;
 }
 
 void
@@ -449,12 +461,25 @@ main (int argc, char *argv[])
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
   //
-  // Configure tracing of the EWMA queue size
+  // Configure tracing
   //
   AsciiTraceHelper asciiTraceHelper;
-  Ptr<OutputStreamWrapper> ewmaStream = asciiTraceHelper.CreateFileStream (pathOut + "/" + qdiscSelection + "/" + qdiscSelection + "-ewma-qsize.plotme");
   Ptr<QueueDisc> qdisc = queueDiscs.Get (0);
+  //
+  // Configure tracing of the Instantaneous queue size
+  //
+  Ptr<OutputStreamWrapper> qsizeStream = asciiTraceHelper.CreateFileStream (pathOut + "/" + qdiscSelection + "/" + qdiscSelection + "-inst-qsize.plotme");
+  qdisc->TraceConnectWithoutContext ("BytesInQueue", MakeBoundCallback (&InstQueueSizeTrace, qsizeStream));
+  //
+  // Configure tracing of the EWMA queue size
+  //
+  Ptr<OutputStreamWrapper> ewmaStream = asciiTraceHelper.CreateFileStream (pathOut + "/" + qdiscSelection + "/" + qdiscSelection + "-ewma-qsize.plotme");
   qdisc->TraceConnectWithoutContext ("AvgQueueSize", MakeBoundCallback (&EwmaQueueSizeTrace, ewmaStream));
+  //
+  // Configure tracing of packet drops
+  //
+  Ptr<OutputStreamWrapper> dropStream = asciiTraceHelper.CreateFileStream (pathOut + "/" + qdiscSelection + "/" + qdiscSelection + "-drop-times.plotme");
+  qdisc->TraceConnectWithoutContext ("Drop", MakeBoundCallback (&TcDropTrace, dropStream));
 
   BuildAppsTest ();
 
@@ -475,10 +500,10 @@ main (int argc, char *argv[])
 
   if (writeForPlot)
     {
-      filePlotQueue << pathOut << "/" << qdiscSelection << "/" << qdiscSelection << "-inst-qsize.plotme";
+//      filePlotQueue << pathOut << "/" << qdiscSelection << "/" << qdiscSelection << "-inst-qsize.plotme";
       filePlotQueueAvg << pathOut << "/" << qdiscSelection << "/" << qdiscSelection << "-avg-qsize.plotme";
 
-      remove (filePlotQueue.str ().c_str ());
+//      remove (filePlotQueue.str ().c_str ());
       remove (filePlotQueueAvg.str ().c_str ());
       Ptr<QueueDisc> queue = queueDiscs.Get (0);
       Simulator::ScheduleNow (&CheckQueueSize, queue);

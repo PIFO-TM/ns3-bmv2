@@ -61,7 +61,7 @@ control MyIngress(inout headers hdr,
 
     table calc_red_drop_probability {
         key = {
-            standard_metadata.avg_qdepth : ternary;
+            standard_metadata.avg_qdepth : exact;
         }
         actions = {
             set_drop_probability;
