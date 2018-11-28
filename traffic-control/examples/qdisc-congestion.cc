@@ -75,6 +75,7 @@ Ipv4InterfaceContainer i3i5;
 std::stringstream filePlotQueue;
 std::stringstream filePlotQueueAvg;
 
+std::string pathOut;
 std::string jsonFile = "";
 std::string commandsFile = "";
 uint32_t qSizeBits = 16;
@@ -103,6 +104,12 @@ CheckQueueSize (Ptr<QueueDisc> queue)
   std::ofstream fPlotQueueAvg (filePlotQueueAvg.str ().c_str (), std::ios::out|std::ios::app);
   fPlotQueueAvg << Simulator::Now ().GetSeconds () << " " << avgQueueSize / checkTimes << std::endl;
   fPlotQueueAvg.close ();
+}
+
+void
+EwmaQueueSizeTrace (Ptr<OutputStreamWrapper> stream, double oldValue, double newValue)
+{
+  *stream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << newValue << std::endl;
 }
 
 void
@@ -321,7 +328,6 @@ main (int argc, char *argv[])
 
   std::string qdiscSelection = "";
 
-  std::string pathOut;
   bool writeForPlot = false;
   bool writePcap = false;
   bool flowMonitor = false;
@@ -442,6 +448,14 @@ main (int argc, char *argv[])
   // Set up the routing
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
+  //
+  // Configure tracing of the EWMA queue size
+  //
+  AsciiTraceHelper asciiTraceHelper;
+  Ptr<OutputStreamWrapper> ewmaStream = asciiTraceHelper.CreateFileStream (pathOut + "/" + qdiscSelection + "/" + qdiscSelection + "-ewma-qsize.plotme");
+  Ptr<QueueDisc> qdisc = queueDiscs.Get (0);
+  qdisc->TraceConnectWithoutContext ("AvgQueueSize", MakeBoundCallback (&EwmaQueueSizeTrace, ewmaStream));
+
   BuildAppsTest ();
 
   if (writePcap)
@@ -461,8 +475,8 @@ main (int argc, char *argv[])
 
   if (writeForPlot)
     {
-      filePlotQueue << pathOut << "/" << qdiscSelection << "/" << qdiscSelection << "-queue.plotme";
-      filePlotQueueAvg << pathOut << "/" << qdiscSelection << "/" << qdiscSelection << "-queue_avg.plotme";
+      filePlotQueue << pathOut << "/" << qdiscSelection << "/" << qdiscSelection << "-inst-qsize.plotme";
+      filePlotQueueAvg << pathOut << "/" << qdiscSelection << "/" << qdiscSelection << "-avg-qsize.plotme";
 
       remove (filePlotQueue.str ().c_str ());
       remove (filePlotQueueAvg.str ().c_str ());
