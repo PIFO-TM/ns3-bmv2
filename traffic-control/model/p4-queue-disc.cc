@@ -78,6 +78,10 @@ TypeId P4QueueDisc::GetTypeId (void)
                    DoubleValue (0.002),
                    MakeDoubleAccessor (&P4QueueDisc::m_qW),
                    MakeDoubleChecker <double> ())
+    .AddTraceSource ("AvgQueueSize",
+                     "The computed EWMA of the queue size",
+                     MakeTraceSourceAccessor (&P4QueueDisc::m_qAvg),
+                     "ns3::TracedValueCallback::Double")
   ;
   return tid;
 }

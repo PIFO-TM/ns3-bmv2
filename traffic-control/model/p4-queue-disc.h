@@ -113,8 +113,8 @@ private:
   SimpleP4Pipe *m_p4Pipe;      //!< The P4 pipeline
   uint32_t m_idle;             //!< 0/1 idle status
   double m_ptc;                //!< packet time constant in packets/second
-  double m_qAvg;               //!< Average queue length
   Time m_idleTime;             //!< Start of current idle period
+  TracedValue<double> m_qAvg;  //!< Average queue length
 
 };
 
