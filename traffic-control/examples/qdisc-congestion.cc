@@ -346,7 +346,7 @@ main (int argc, char *argv[])
   cmd.AddValue ("writeForPlot", "<0/1> to write results for plot (gnuplot)", writeForPlot);
   cmd.AddValue ("writePcap", "<0/1> to write results in pcapfile", writePcap);
   cmd.AddValue ("writeFlowMonitor", "<0/1> to enable Flow Monitor and write their results", flowMonitor);
-  cmd.AddValue ("JsonFile", "Path to the desired bmv2 JSON file", jsonFile);
+  cmd.AddValue ("jsonFile", "Path to the desired bmv2 JSON file", jsonFile);
   cmd.AddValue ("commandsFile", "Path to the desired bmv2 CLI commands file", commandsFile);
 
   cmd.Parse (argc, argv);
@@ -461,8 +461,8 @@ main (int argc, char *argv[])
 
   if (writeForPlot)
     {
-      filePlotQueue << pathOut << "/" << qdiscSelection << "-queue.plotme";
-      filePlotQueueAvg << pathOut << "/" << qdiscSelection << "-queue_avg.plotme";
+      filePlotQueue << pathOut << "/" << qdiscSelection << "/" << qdiscSelection << "-queue.plotme";
+      filePlotQueueAvg << pathOut << "/" << qdiscSelection << "/" << qdiscSelection << "-queue_avg.plotme";
 
       remove (filePlotQueue.str ().c_str ());
       remove (filePlotQueueAvg.str ().c_str ());
@@ -476,7 +476,7 @@ main (int argc, char *argv[])
   if (flowMonitor)
     {
       std::stringstream stmp;
-      stmp << pathOut << "/" << qdiscSelection << ".flowmon";
+      stmp << pathOut << "/" << qdiscSelection << "/" << qdiscSelection << ".flowmon";
 
       flowmon->SerializeToXmlFile (stmp.str ().c_str (), false, false);
     }

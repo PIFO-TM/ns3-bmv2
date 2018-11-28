@@ -125,7 +125,7 @@ SimpleP4Pipe::run_cli(std::string commandsFile) {
   bm_runtime::start_server(this, port);
   start_and_return();
 
-  std::this_thread::sleep_for(std::chrono::seconds(10));
+  std::this_thread::sleep_for(std::chrono::seconds(5));
 
   // Run the CLI commands to populate table entries
   std::string cmd = "run_bmv2_CLI --thrift_port " + std::to_string(port) + " " + commandsFile;

@@ -1,0 +1,8 @@
+table_add calc_red_drop_probability set_drop_probability 0b1000000000000000&&&0b1000000000000000 => 256 0
+table_add calc_red_drop_probability set_drop_probability 0b0100000000000000&&&0b0100000000000000 => 256 1
+table_add calc_red_drop_probability set_drop_probability 0b0010000000000000&&&0b0010000000000000 => 256 2
+table_add calc_red_drop_probability set_drop_probability 0b0001000000000000&&&0b0001000000000000 => 256 3
+table_add calc_red_drop_probability set_drop_probability 0b0000100000000000&&&0b0000100000000000 => 256 4
+table_add calc_red_drop_probability set_drop_probability 0b0000010000000000&&&0b0000010000000000 => 256 5
+table_add calc_red_drop_probability set_drop_probability 0b0000001000000000&&&0b0000001000000000 => 256 6
+table_add calc_red_drop_probability set_drop_probability 0b0000000100000000&&&0b0000000100000000 => 256 7
