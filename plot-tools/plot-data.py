@@ -6,7 +6,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 import sys, os, argparse
 
 def line_gen():
-    lines = ['-', '--', ':', '-.']
+    lines = ['-', '--', '-.', ':']
     i = 0
     while True:
         yield lines[i]
@@ -16,7 +16,7 @@ def line_gen():
 line_generator = line_gen()
 
 def color_gen():
-    colors = ['b', 'g', 'r', 'c']
+    colors = ['b', 'g', 'c', 'r']
     i = 0
     while True:
         yield colors[i]

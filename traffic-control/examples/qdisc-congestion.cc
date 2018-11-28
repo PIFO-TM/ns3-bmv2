@@ -83,7 +83,7 @@ uint32_t testNum;
 std::string bnLinkDataRate = "1.5Mbps";
 std::string bnLinkDelay = "20ms";
 std::string maxQueueSize = "500KB";
-uint32_t meanPktSize = 500;
+uint32_t meanPktSize = 1000; //500;
 double qW = 0.002;
 
 void
@@ -275,10 +275,10 @@ configQdisc (std::string qdiscSelection, TrafficControlHelper &tchQdisc)
     {
       // RED params
       NS_LOG_INFO ("Set RED params");
-      Config::SetDefault ("ns3::RedQueueDisc::MaxSize", StringValue ("500KB"));
+      Config::SetDefault ("ns3::RedQueueDisc::MaxSize", StringValue (maxQueueSize));
       Config::SetDefault ("ns3::RedQueueDisc::MeanPktSize", UintegerValue (meanPktSize));
       Config::SetDefault ("ns3::RedQueueDisc::Wait", BooleanValue (true));
-      Config::SetDefault ("ns3::RedQueueDisc::Gentle", BooleanValue (true));
+      Config::SetDefault ("ns3::RedQueueDisc::Gentle", BooleanValue (false));
       Config::SetDefault ("ns3::RedQueueDisc::QW", DoubleValue (qW));
       Config::SetDefault ("ns3::RedQueueDisc::MinTh", DoubleValue (5 * meanPktSize));
       Config::SetDefault ("ns3::RedQueueDisc::MaxTh", DoubleValue (15 * meanPktSize));
@@ -382,12 +382,12 @@ main (int argc, char *argv[])
   Config::SetDefault ("ns3::TcpSocket::DelAckCount", UintegerValue (1));
   GlobalValue::Bind ("ChecksumEnabled", BooleanValue (false));
 
-  TrafficControlHelper tchQdisc;
-  configQdisc(qdiscSelection, tchQdisc);
-
   NS_LOG_INFO ("Install internet stack on all nodes.");
   InternetStackHelper internet;
   internet.Install (c);
+
+  TrafficControlHelper tchQdisc;
+  configQdisc(qdiscSelection, tchQdisc);
 
   TrafficControlHelper tchPfifo;
   uint16_t handle = tchPfifo.SetRootQueueDisc ("ns3::PfifoFastQueueDisc");
