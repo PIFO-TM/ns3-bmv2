@@ -22,7 +22,7 @@
 
 /**
  * These tests where originally designed to test RED implementations, but have
- * been refactored to be more general. See red-tests.cc.
+ * been refactored to be more general. Compare to red-tests.cc
  */
 
 /** Network topology
@@ -75,6 +75,15 @@ Ipv4InterfaceContainer i3i5;
 std::stringstream filePlotQueue;
 std::stringstream filePlotQueueAvg;
 
+std::string jsonFile = "";
+std::string commandsFile = "";
+uint32_t qSizeBits = 16;
+uint32_t testNum;
+std::string bnLinkDataRate = "1.5Mbps";
+std::string bnLinkDelay = "20ms";
+std::string maxQueueSize = "500KB";
+uint32_t meanPktSize = 500;
+
 void
 CheckQueueSize (Ptr<QueueDisc> queue)
 {
@@ -96,9 +105,9 @@ CheckQueueSize (Ptr<QueueDisc> queue)
 }
 
 void
-BuildAppsTest (uint32_t test)
+BuildAppsTest ()
 {
-  if ( (test == 1) || (test == 3) )
+  if ( (testNum == 1) || (testNum == 3) )
     {
       // SINK is in the right side
       uint16_t port = 50000;
@@ -145,7 +154,7 @@ BuildAppsTest (uint32_t test)
       clientApps2.Start (Seconds (3.0));
       clientApps2.Stop (Seconds (client_stop_time));
     }
-  else // 4 or 5
+  else // 4
     {
       // SINKs
       // #1
@@ -251,14 +260,65 @@ BuildAppsTest (uint32_t test)
     }
 }
 
+void
+configQdisc (std::string qdiscSelection, TrafficControlHelper &tchQdisc)
+{
+  if (qdiscSelection == "red")
+    {
+      // RED params
+      NS_LOG_INFO ("Set RED params");
+      Config::SetDefault ("ns3::RedQueueDisc::MaxSize", StringValue ("500KB"));
+      Config::SetDefault ("ns3::RedQueueDisc::MeanPktSize", UintegerValue (meanPktSize));
+      Config::SetDefault ("ns3::RedQueueDisc::Wait", BooleanValue (true));
+      Config::SetDefault ("ns3::RedQueueDisc::Gentle", BooleanValue (true));
+      Config::SetDefault ("ns3::RedQueueDisc::QW", DoubleValue (0.002));
+      Config::SetDefault ("ns3::RedQueueDisc::MinTh", DoubleValue (5 * meanPktSize));
+      Config::SetDefault ("ns3::RedQueueDisc::MaxTh", DoubleValue (15 * meanPktSize));
+      Config::SetDefault ("ns3::RedQueueDisc::LinkBandwidth", StringValue (bnLinkDataRate));
+      Config::SetDefault ("ns3::RedQueueDisc::LinkDelay", StringValue (bnLinkDelay));
+      //Config::SetDefault ("ns3::RedQueueDisc::Ns1Compat", BooleanValue (true));
+
+      if (testNum == 3) // test like 1, but with bad params
+        {
+          Config::SetDefault ("ns3::RedQueueDisc::MaxTh", DoubleValue (10 * meanPktSize));
+          Config::SetDefault ("ns3::RedQueueDisc::QW", DoubleValue (0.003));
+        }
+
+      tchQdisc.SetRootQueueDisc ("ns3::RedQueueDisc");
+    }
+  else if (qdiscSelection == "p4")
+    {
+      if (jsonFile == "" || commandsFile == "")
+        {
+          NS_LOG_ERROR("Using P4 queue disc, but JSON file or commands file is unconfigured");
+        }
+
+      // P4 queue disc params
+      NS_LOG_INFO("Set P4 queue disc params");
+      Config::SetDefault ("ns3::P4QueueDisc::MaxSize", StringValue (maxQueueSize));
+      Config::SetDefault ("ns3::P4QueueDisc::JsonFile", StringValue (jsonFile));
+      Config::SetDefault ("ns3::P4QueueDisc::CommandsFile", StringValue (commandsFile));
+      Config::SetDefault ("ns3::P4QueueDisc::QueueSizeBits", UintegerValue (qSizeBits));
+      Config::SetDefault ("ns3::P4QueueDisc::QW", DoubleValue (qW));
+      Config::SetDefault ("ns3::P4QueueDisc::MeanPktSize", UintegerValue (meanPktSize));
+      Config::SetDefault ("ns3::P4QueueDisc::LinkBandwidth", StringValue (bnLinkDataRate));
+      Config::SetDefault ("ns3::P4QueueDisc::LinkDelay", StringValue (bnLinkDelay));
+
+      tchQdisc.SetRootQueueDisc ("ns3::P4QueueDisc");
+    }
+  else
+    {
+      NS_LOG_ERROR("Unrecognized qdisc selection: " << qdiscSelection);
+    }
+
+}
+
 int
 main (int argc, char *argv[])
 {
   LogComponentEnable ("QdiscCongestion", LOG_LEVEL_INFO);
 
-  uint32_t testNum;
-  std::string bnLinkDataRate = "1.5Mbps";
-  std::string bnLinkDelay = "20ms";
+  std::string qdiscSelection = "";
 
   std::string pathOut;
   bool writeForPlot = false;
@@ -279,17 +339,19 @@ main (int argc, char *argv[])
   // Will only save in the directory if enable opts below
   pathOut = "."; // Current directory
   CommandLine cmd;
-  cmd.AddValue ("testNumber", "Run test 1, 3, 4 or 5", testNum);
+  cmd.AddValue ("qdisc", "Which qdisc implementation to run: red, p4", qdiscSelection);
+  cmd.AddValue ("testNumber", "Run test 1, 3, 4", testNum);
   cmd.AddValue ("pathOut", "Path to save results from --writeForPlot/--writePcap/--writeFlowMonitor", pathOut);
   cmd.AddValue ("writeForPlot", "<0/1> to write results for plot (gnuplot)", writeForPlot);
   cmd.AddValue ("writePcap", "<0/1> to write results in pcapfile", writePcap);
   cmd.AddValue ("writeFlowMonitor", "<0/1> to enable Flow Monitor and write their results", flowMonitor);
-  // TODO(sibanez): add option to choose qdisc implementation
+  cmd.AddValue ("JsonFile", "Path to the desired bmv2 JSON file", jsonFile);
+  cmd.AddValue ("commandsFile", "Path to the desired bmv2 CLI commands file", commandsFile);
 
   cmd.Parse (argc, argv);
-  if ( (testNum != 1) && (testNum != 3) && (testNum != 4) && (testNum != 5) )
+  if ( (testNum != 1) && (testNum != 3) && (testNum != 4) )
     {
-      NS_ABORT_MSG ("Invalid test number. Supported tests are 1, 3, 4 or 5");
+      NS_ABORT_MSG ("Invalid test number. Supported tests are 1, 3, 4");
     }
 
   NS_LOG_INFO ("Create nodes");
@@ -313,31 +375,8 @@ main (int argc, char *argv[])
   Config::SetDefault ("ns3::TcpSocket::DelAckCount", UintegerValue (1));
   GlobalValue::Bind ("ChecksumEnabled", BooleanValue (false));
 
-  uint32_t meanPktSize = 500;
-
-  // RED params
-  NS_LOG_INFO ("Set RED params");
-  Config::SetDefault ("ns3::RedQueueDisc::MaxSize", StringValue ("1000p"));
-  Config::SetDefault ("ns3::RedQueueDisc::MeanPktSize", UintegerValue (meanPktSize));
-  Config::SetDefault ("ns3::RedQueueDisc::Wait", BooleanValue (true));
-  Config::SetDefault ("ns3::RedQueueDisc::Gentle", BooleanValue (true));
-  Config::SetDefault ("ns3::RedQueueDisc::QW", DoubleValue (0.002));
-  Config::SetDefault ("ns3::RedQueueDisc::MinTh", DoubleValue (5));
-  Config::SetDefault ("ns3::RedQueueDisc::MaxTh", DoubleValue (15));
-
-  if (testNum == 3) // test like 1, but with bad params
-    {
-      Config::SetDefault ("ns3::RedQueueDisc::MaxTh", DoubleValue (10));
-      Config::SetDefault ("ns3::RedQueueDisc::QW", DoubleValue (0.003));
-    }
-  else if (testNum == 5) // test 5, same as test 4, but in byte mode
-    {
-      Config::SetDefault ("ns3::RedQueueDisc::MaxSize",
-                          QueueSizeValue (QueueSize (QueueSizeUnit::BYTES, 1000 * meanPktSize)));
-      Config::SetDefault ("ns3::RedQueueDisc::Ns1Compat", BooleanValue (true));
-      Config::SetDefault ("ns3::RedQueueDisc::MinTh", DoubleValue (5 * meanPktSize));
-      Config::SetDefault ("ns3::RedQueueDisc::MaxTh", DoubleValue (15 * meanPktSize));
-    }
+  TrafficControlHelper tchQdisc;
+  configQdisc(qdiscSelection, tchQdisc);
 
   NS_LOG_INFO ("Install internet stack on all nodes.");
   InternetStackHelper internet;
@@ -346,10 +385,6 @@ main (int argc, char *argv[])
   TrafficControlHelper tchPfifo;
   uint16_t handle = tchPfifo.SetRootQueueDisc ("ns3::PfifoFastQueueDisc");
   tchPfifo.AddInternalQueues (handle, 3, "ns3::DropTailQueue", "MaxSize", StringValue ("1000p"));
-
-  TrafficControlHelper tchRed;
-  tchRed.SetRootQueueDisc ("ns3::RedQueueDisc", "LinkBandwidth", StringValue (bnLinkDataRate),
-                           "LinkDelay", StringValue (bnLinkDelay));
 
   NS_LOG_INFO ("Create channels");
   PointToPointHelper p2p;
@@ -370,8 +405,8 @@ main (int argc, char *argv[])
   p2p.SetDeviceAttribute ("DataRate", StringValue (bnLinkDataRate));
   p2p.SetChannelAttribute ("Delay", StringValue (bnLinkDelay));
   NetDeviceContainer devn2n3 = p2p.Install (n2n3);
-  // only backbone link has RED queue disc
-  QueueDiscContainer queueDiscs = tchRed.Install (devn2n3);
+  // only backbone link has selected queue disc implemenation
+  QueueDiscContainer queueDiscs = tchQdisc.Install (devn2n3);
 
   p2p.SetQueue ("ns3::DropTailQueue");
   p2p.SetDeviceAttribute ("DataRate", StringValue ("10Mbps"));
@@ -406,22 +441,13 @@ main (int argc, char *argv[])
   // Set up the routing
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
-  if (testNum == 5) 
-    {
-      // like in ns2 test, r2 -> r1, have a queue in packet mode
-      Ptr<QueueDisc> queue = queueDiscs.Get (1);
-
-      queue->SetMaxSize (QueueSize ("1000p"));
-      StaticCast<RedQueueDisc> (queue)->SetTh (5, 15);
-    }
-
-  BuildAppsTest (testNum);
+  BuildAppsTest ();
 
   if (writePcap)
     {
       PointToPointHelper ptp;
       std::stringstream stmp;
-      stmp << pathOut << "/red";
+      stmp << pathOut << "/" << qdiscSelection;
       ptp.EnablePcapAll (stmp.str ().c_str ());
     }
 
@@ -434,8 +460,8 @@ main (int argc, char *argv[])
 
   if (writeForPlot)
     {
-      filePlotQueue << pathOut << "/" << "red-queue.plotme";
-      filePlotQueueAvg << pathOut << "/" << "red-queue_avg.plotme";
+      filePlotQueue << pathOut << "/" << qdiscSelection << "-queue.plotme";
+      filePlotQueueAvg << pathOut << "/" << qdiscSelection << "-queue_avg.plotme";
 
       remove (filePlotQueue.str ().c_str ());
       remove (filePlotQueueAvg.str ().c_str ());
@@ -449,7 +475,7 @@ main (int argc, char *argv[])
   if (flowMonitor)
     {
       std::stringstream stmp;
-      stmp << pathOut << "/red.flowmon";
+      stmp << pathOut << "/" << qdiscSelection << ".flowmon";
 
       flowmon->SerializeToXmlFile (stmp.str ().c_str (), false, false);
     }
@@ -457,11 +483,11 @@ main (int argc, char *argv[])
   if (printStats)
     {
       QueueDisc::Stats st = queueDiscs.Get (0)->GetStats ();
-      std::cout << "*** RED stats from Node 2 queue disc ***" << std::endl;
+      std::cout << "*** " << qdiscSelection << " stats from Node 2 queue disc ***" << std::endl;
       std::cout << st << std::endl;
 
       st = queueDiscs.Get (1)->GetStats ();
-      std::cout << "*** RED stats from Node 3 queue disc ***" << std::endl;
+      std::cout << "*** " << qdiscSelection << " stats from Node 3 queue disc ***" << std::endl;
       std::cout << st << std::endl;
     }
 

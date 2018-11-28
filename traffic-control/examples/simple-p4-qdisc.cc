@@ -114,7 +114,12 @@ main (int argc, char *argv[])
   //tch.SetRootQueueDisc ("ns3::PfifoFastQueueDisc");
   tch.SetRootQueueDisc ("ns3::P4QueueDisc",
                         "JsonFile", StringValue("src/traffic-control/examples/p4-src/basic-test.json"),
-                        "CommandsFile", StringValue("src/traffic-control/examples/p4-src/commands.txt")
+                        "CommandsFile", StringValue("src/traffic-control/examples/p4-src/commands.txt"),
+                        "QueueSizeBits", UintegerValue (16), // # bits used to represent range of values
+                        // used for avg queue size computation
+                        "QW", DoubleValue (0.002),
+                        "MeanPktSize", UintegerValue (500),
+                        "LinkBandwidth", DataRateValue (DataRate ("5Mbps"))
                         );
 
   // Install Queue Disc on the router interface towards n2

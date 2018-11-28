@@ -43,16 +43,47 @@ TypeId P4QueueDisc::GetTypeId (void)
     .SetParent<QueueDisc> ()
     .SetGroupName ("TrafficControl")
     .AddConstructor<P4QueueDisc> ()
+    .AddAttribute ("MaxSize",
+                   "The max queue size",
+                   QueueSizeValue (QueueSize ("500KB")),
+                   MakeQueueSizeAccessor (&QueueDisc::SetMaxSize,
+                                          &QueueDisc::GetMaxSize),
+                   MakeQueueSizeChecker ())
     .AddAttribute ( "JsonFile", "The bmv2 JSON file to use",
                     StringValue (""), MakeStringAccessor (&P4QueueDisc::GetJsonFile, &P4QueueDisc::SetJsonFile), MakeStringChecker ())
     .AddAttribute ( "CommandsFile", "A file with CLI commands to run on the P4 pipeline before starting the simulation",
                     StringValue (""), MakeStringAccessor (&P4QueueDisc::GetCommandsFile, &P4QueueDisc::SetCommandsFile), MakeStringChecker ())
+    .AddAttribute ("QueueSizeBits",
+                   "Number of bits to use to represent range of values for packet/queue size (up to 32)",
+                   UintegerValue (16),
+                   MakeUintegerAccessor (&P4QueueDisc::m_qSizeBits),
+                   MakeUintegerChecker<uint32_t> ())
+    .AddAttribute ("MeanPktSize",
+                   "Average of packet size",
+                   UintegerValue (500),
+                   MakeUintegerAccessor (&P4QueueDisc::m_meanPktSize),
+                   MakeUintegerChecker<uint32_t> ())
+    .AddAttribute ("LinkDelay", 
+                   "The P4 queue disc link delay",
+                   TimeValue (MilliSeconds (20)),
+                   MakeTimeAccessor (&P4QueueDisc::m_linkDelay),
+                   MakeTimeChecker ())
+    .AddAttribute ("LinkBandwidth", 
+                   "The P4 queue disc link bandwidth",
+                   DataRateValue (DataRate ("1.5Mbps")),
+                   MakeDataRateAccessor (&P4QueueDisc::m_linkBandwidth),
+                   MakeDataRateChecker ())
+    .AddAttribute ("QW",
+                   "Queue weight related to the exponential weighted moving average (EWMA)",
+                   DoubleValue (0.002),
+                   MakeDoubleAccessor (&P4QueueDisc::m_qW),
+                   MakeDoubleChecker <double> ())
   ;
   return tid;
 }
 
 P4QueueDisc::P4QueueDisc ()
-  : QueueDisc (QueueDiscSizePolicy::MULTIPLE_QUEUES, QueueSizeUnit::PACKETS)
+  : QueueDisc (QueueDiscSizePolicy::SINGLE_CHILD_QUEUE_DISC, QueueSizeUnit::BYTES)
 {
   NS_LOG_FUNCTION (this);
   m_p4Pipe = NULL;
@@ -76,13 +107,6 @@ P4QueueDisc::SetJsonFile (std::string jsonFile)
 {
   NS_LOG_FUNCTION (this << jsonFile);
   m_jsonFile = jsonFile;
-
-  if (m_p4Pipe == NULL && m_commandsFile != "")
-    {
-      // create and initialize the P4 pipeline
-      m_p4Pipe = new SimpleP4Pipe (m_jsonFile);
-      m_p4Pipe->run_cli (m_commandsFile);
-    }
 }
 
 std::string
@@ -97,13 +121,6 @@ P4QueueDisc::SetCommandsFile (std::string commandsFile)
 {
   NS_LOG_FUNCTION (this << commandsFile);
   m_commandsFile = commandsFile;
-
-  if (m_p4Pipe == NULL && m_jsonFile != "")
-    {
-      // create and initialize the P4 pipeline
-      m_p4Pipe = new SimpleP4Pipe(m_jsonFile);
-      m_p4Pipe->run_cli (m_commandsFile);
-    }
 }
 
 bool
@@ -111,15 +128,36 @@ P4QueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
 {
   NS_LOG_FUNCTION (this << item);
 
-  // create standard metadata
+  //
+  // Compute average queue size
+  //
+  uint32_t nQueued = GetCurrentSize ().GetValue (); 
+
+  // simulate number of packets arrival during idle period
+  uint32_t m = 0;
+  if (m_idle == 1)
+    {
+      NS_LOG_DEBUG ("P4 Queue Disc is idle.");
+      Time now = Simulator::Now ();
+      m = uint32_t (m_ptc * (now - m_idleTime).GetSeconds ());
+      m_idle = 0;
+    }
+
+  m_qAvg = Estimator (nQueued, m + 1, m_qAvg, m_qW);
+
+  //
+  // Initialize standard metadata
+  //
   std_meta_t std_meta;
-  std_meta.qdepth = GetNBytes();
-  std_meta.timestamp = Simulator::Now().GetNanoSeconds();
-  std_meta.pkt_len = item->GetSize();
-  std_meta.l3_proto = item->GetProtocol();
-  std_meta.flow_hash = item->Hash(); //TODO(sibanez): include perturbation?
+  std_meta.qdepth = MapSize ((double) nQueued);
+  std_meta.avg_qdepth = MapSize (m_qAvg);
+  std_meta.timestamp = Simulator::Now ().GetNanoSeconds ();
+  std_meta.idle_time = m_idleTime.GetNanoSeconds ();
+  std_meta.pkt_len = MapSize ((double) item->GetSize ());
+  std_meta.l3_proto = item->GetProtocol ();
+  std_meta.flow_hash = item->Hash (); //TODO(sibanez): include perturbation?
   std_meta.drop = false; 
-  std_meta.mark = false; 
+  std_meta.mark = false;
 
   // perform P4 processing
   Ptr<Packet> new_packet = m_p4Pipe->process_pipeline(item->GetPacket(), std_meta);
@@ -149,22 +187,110 @@ P4QueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
   return retval;
 }
 
+uint32_t
+P4QueueDisc::MapSize (double size)
+{
+  NS_LOG_FUNCTION (this << size);
+
+  uint32_t maxSize = GetMaxSize ().GetValue();
+  uint32_t result = (uint32_t) std::round (( ((double)size)/((double)maxSize) ) * ((1 << m_qSizeBits) - 1));
+
+  NS_LOG_LOGIC ("Mapped size " << size << " into " << result);
+  return result;
+}
+
+void
+P4QueueDisc::InitializeParams (void)
+{
+  NS_LOG_FUNCTION (this);
+  NS_LOG_INFO ("Initializing P4 Queue Disc params.");
+
+  // create and initialize the P4 pipeline
+  if (m_p4Pipe == NULL && m_jsonFile != "" && m_commandsFile != "")
+    {
+      m_p4Pipe = new SimpleP4Pipe(m_jsonFile);
+      m_p4Pipe->run_cli (m_commandsFile);
+    }
+
+  m_ptc = m_linkBandwidth.GetBitRate () / (8.0 * m_meanPktSize);
+
+  m_qAvg = 0.0;
+  m_idle = 1;
+  m_idleTime = NanoSeconds (0);
+
+/*
+ * If m_qW=0, set it to a reasonable value of 1-exp(-1/C)
+ * This corresponds to choosing m_qW to be of that value for
+ * which the packet time constant -1/ln(1-m)qW) per default RTT 
+ * of 100ms is an order of magnitude more than the link capacity, C.
+ *
+ * If m_qW=-1, then the queue weight is set to be a function of
+ * the bandwidth and the link propagation delay.  In particular, 
+ * the default RTT is assumed to be three times the link delay and 
+ * transmission delay, if this gives a default RTT greater than 100 ms. 
+ *
+ * If m_qW=-2, set it to a reasonable value of 1-exp(-10/C).
+ */
+  if (m_qW == 0.0)
+    {
+      m_qW = 1.0 - std::exp (-1.0 / m_ptc);
+    }
+  else if (m_qW == -1.0)
+    {
+      double rtt = 3.0 * (m_linkDelay.GetSeconds () + 1.0 / m_ptc);
+
+      if (rtt < 0.1)
+        {
+          rtt = 0.1;
+        }
+      m_qW = 1.0 - std::exp (-1.0 / (10 * rtt * m_ptc));
+    }
+  else if (m_qW == -2.0)
+    {
+      m_qW = 1.0 - std::exp (-10.0 / m_ptc);
+    }
+
+  NS_LOG_DEBUG ("\tm_linkDelay " << m_linkDelay.GetSeconds ()
+                << "; m_linkBandwidth " << m_linkBandwidth.GetBitRate ()
+                << "; m_qW " << m_qW
+                << "; m_ptc " << m_ptc
+                );
+}
+
+// Compute the average queue size
+double
+P4QueueDisc::Estimator (uint32_t nQueued, uint32_t m, double qAvg, double qW)
+{
+  NS_LOG_FUNCTION (this << nQueued << m << qAvg << qW);
+
+  double newAve = qAvg * std::pow (1.0 - qW, m);
+  newAve += qW * nQueued;
+
+  return newAve;
+}
+
 Ptr<QueueDiscItem>
 P4QueueDisc::DoDequeue (void)
 {
   NS_LOG_FUNCTION (this);
 
-  Ptr<QueueDiscItem> item;
-
-  if ((item = GetQueueDiscClass (0)->GetQueueDisc ()->Dequeue ()) != 0)
+  if (GetQueueDiscClass (0)->GetQueueDisc ()->GetNPackets() == 0)
     {
+      NS_LOG_LOGIC ("Queue empty");
+      m_idle = 1;
+      m_idleTime = Simulator::Now ();
+
+      return 0;
+    }
+  else
+    {
+      Ptr<QueueDiscItem> item;
+      item = GetQueueDiscClass (0)->GetQueueDisc ()->Dequeue ();
+
       NS_LOG_LOGIC ("Popped from qdisc: " << item);
       NS_LOG_LOGIC ("Number packets in qdisc: " << GetQueueDiscClass (0)->GetQueueDisc ()->GetNPackets ());
       return item;
     }
-  
-  NS_LOG_LOGIC ("Queue empty");
-  return item;
 }
 
 Ptr<const QueueDiscItem>
@@ -207,6 +333,12 @@ P4QueueDisc::CheckConfig (void)
       ObjectFactory factory;
       factory.SetTypeId ("ns3::FifoQueueDisc");
       Ptr<QueueDisc> qd = factory.Create<QueueDisc> ();
+
+      if (!qd->SetMaxSize (GetMaxSize ()))
+        {
+          NS_LOG_ERROR ("Cannot set the max size of the child queue disc to that of P4QueueDisc");
+          return false;
+        }
       qd->Initialize ();
       Ptr<QueueDiscClass> c = CreateObject<QueueDiscClass> ();
       c->SetQueueDisc (qd);
@@ -232,12 +364,6 @@ P4QueueDisc::CheckConfig (void)
     }
 
   return true;
-}
-
-void
-P4QueueDisc::InitializeParams (void)
-{
-  NS_LOG_FUNCTION (this);
 }
 
 } // namespace ns3

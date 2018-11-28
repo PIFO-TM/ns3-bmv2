@@ -39,7 +39,9 @@ namespace ns3 {
  */
 typedef struct {
   int qdepth;          // input
+  int avg_qdepth;      // input
   int64_t timestamp;   // input
+  int64_t idle_time;   // input
   uint32_t pkt_len;    // input
   uint16_t l3_proto;   // input
   uint32_t flow_hash;  // input

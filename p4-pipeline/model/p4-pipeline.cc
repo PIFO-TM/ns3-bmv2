@@ -82,22 +82,18 @@ uint8_t SimpleP4Pipe::ns2bm_buf[MAX_PKT_SIZE] = {};
 
 SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile)
 {
-
-  add_required_field("standard_metadata", "ingress_port");
-  add_required_field("standard_metadata", "packet_length");
-  add_required_field("standard_metadata", "instance_type");
-  add_required_field("standard_metadata", "egress_spec");
-  add_required_field("standard_metadata", "clone_spec");
-  add_required_field("standard_metadata", "egress_port");
-  // Additional fields
-  add_required_field("standard_metadata", "drop");
-  add_required_field("standard_metadata", "mark");
+  // Required fields
+  add_required_field("standard_metadata", "qdepth");
+  add_required_field("standard_metadata", "avg_qdepth");
+  add_required_field("standard_metadata", "timestamp");
+  add_required_field("standard_metadata", "idle_time");
+  add_required_field("standard_metadata", "pkt_len");
   add_required_field("standard_metadata", "l3_proto");
   add_required_field("standard_metadata", "flow_hash");
+  add_required_field("standard_metadata", "drop");
+  add_required_field("standard_metadata", "mark");
 
   force_arith_header("standard_metadata");
-  force_arith_header("queueing_metadata");
-  force_arith_header("intrinsic_metadata");
 
   import_primitives();
 
@@ -167,22 +163,13 @@ SimpleP4Pipe::process_pipeline(Ptr<Packet> ns3_packet, std_meta_t &std_meta) {
   // using packet register 0 to store length, this register will be updated for
   // each add_header / remove_header primitive call
   packet->set_register(PACKET_LENGTH_REG_IDX, len);
-  phv->get_field("standard_metadata.packet_length").set(std_meta.pkt_len);
+  phv->get_field("standard_metadata.qdepth").set(std_meta.qdepth);
+  phv->get_field("standard_metadata.avg_qdepth").set(std_meta.avg_qdepth);
+  phv->get_field("standard_metadata.timestamp").set(std_meta.timestamp);
+  phv->get_field("standard_metadata.idle_time").set(std_meta.idle_time);
+  phv->get_field("standard_metadata.pkt_len").set(std_meta.pkt_len);
   phv->get_field("standard_metadata.l3_proto").set(std_meta.l3_proto);
   phv->get_field("standard_metadata.flow_hash").set(std_meta.flow_hash);
-
-  if (phv->has_field("intrinsic_metadata.ingress_global_timestamp"))
-    phv->get_field("intrinsic_metadata.ingress_global_timestamp")
-          .set(std_meta.timestamp);
-  else
-    bm::Logger::get()->warn(
-          "Your JSON input does not define the ingress_global_timestamp field");
-
-  if (field_exists("queueing_metadata", "enq_qdepth"))
-    phv->get_field("queueing_metadata.enq_qdepth").set(std_meta.qdepth);
-  else
-    bm::Logger::get()->warn(
-          "Your JSON input does not define the enq_qdepth field");
 
   BMLOG_DEBUG_PKT(*packet, "Processing received packet");
 
@@ -207,8 +194,7 @@ SimpleP4Pipe::process_pipeline(Ptr<Packet> ns3_packet, std_meta_t &std_meta) {
   std_meta.mark = (mark != 0);
 
   BMELOG(packet_out, *packet);
-  BMLOG_DEBUG_PKT(*packet, "Transmitting packet of size {}",
-                   packet->get_data_size());
+  BMLOG_DEBUG_PKT(*packet, "Transmitting packet");
 
   return get_ns3_packet(std::move(packet));
 }
