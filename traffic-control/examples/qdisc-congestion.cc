@@ -83,6 +83,7 @@ std::string bnLinkDataRate = "1.5Mbps";
 std::string bnLinkDelay = "20ms";
 std::string maxQueueSize = "500KB";
 uint32_t meanPktSize = 500;
+double qW = 0.002;
 
 void
 CheckQueueSize (Ptr<QueueDisc> queue)
@@ -271,7 +272,7 @@ configQdisc (std::string qdiscSelection, TrafficControlHelper &tchQdisc)
       Config::SetDefault ("ns3::RedQueueDisc::MeanPktSize", UintegerValue (meanPktSize));
       Config::SetDefault ("ns3::RedQueueDisc::Wait", BooleanValue (true));
       Config::SetDefault ("ns3::RedQueueDisc::Gentle", BooleanValue (true));
-      Config::SetDefault ("ns3::RedQueueDisc::QW", DoubleValue (0.002));
+      Config::SetDefault ("ns3::RedQueueDisc::QW", DoubleValue (qW));
       Config::SetDefault ("ns3::RedQueueDisc::MinTh", DoubleValue (5 * meanPktSize));
       Config::SetDefault ("ns3::RedQueueDisc::MaxTh", DoubleValue (15 * meanPktSize));
       Config::SetDefault ("ns3::RedQueueDisc::LinkBandwidth", StringValue (bnLinkDataRate));
