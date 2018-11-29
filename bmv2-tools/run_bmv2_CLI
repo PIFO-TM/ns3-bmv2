@@ -10,8 +10,9 @@ def run_CLI(thrift_port, cli_input_commands, log_dir):
     with open(cli_input_commands, 'r') as fin:
         cli_outfile = os.path.join(log_dir, 'bmv2-{}-cli-output.log'.format(thrift_port))
         with open(cli_outfile, 'w') as fout:
-            subprocess.Popen([cli, '--thrift-port', str(thrift_port)],
+            p = subprocess.Popen([cli, '--thrift-port', str(thrift_port)],
                              stdin=fin, stdout=fout)
+            p.wait()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

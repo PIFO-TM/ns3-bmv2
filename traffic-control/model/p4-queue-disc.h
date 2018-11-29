@@ -116,6 +116,11 @@ private:
   Time m_idleTime;             //!< Start of current idle period
   TracedValue<double> m_qAvg;  //!< Average queue length
 
+  TracedValue<uint32_t> m_p4Var1; //!< 1st traced P4 variable
+  TracedValue<uint32_t> m_p4Var2; //!< 2nd traced P4 variable
+  TracedValue<uint32_t> m_p4Var3; //!< 3rd traced P4 variable
+  TracedValue<uint32_t> m_p4Var4; //!< 4th traced P4 variable
+
 };
 
 } // namespace ns3

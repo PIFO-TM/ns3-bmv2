@@ -82,6 +82,22 @@ TypeId P4QueueDisc::GetTypeId (void)
                      "The computed EWMA of the queue size",
                      MakeTraceSourceAccessor (&P4QueueDisc::m_qAvg),
                      "ns3::TracedValueCallback::Double")
+    .AddTraceSource ("P4Var1",
+                     "1st traced P4 variable",
+                     MakeTraceSourceAccessor (&P4QueueDisc::m_p4Var1),
+                     "ns3::TracedValueCallback::Uint32")
+    .AddTraceSource ("P4Var2",
+                     "2nd traced P4 variable",
+                     MakeTraceSourceAccessor (&P4QueueDisc::m_p4Var2),
+                     "ns3::TracedValueCallback::Uint32")
+    .AddTraceSource ("P4Var3",
+                     "3rd traced P4 variable",
+                     MakeTraceSourceAccessor (&P4QueueDisc::m_p4Var3),
+                     "ns3::TracedValueCallback::Uint32")
+    .AddTraceSource ("P4Var4",
+                     "4th traced P4 variable",
+                     MakeTraceSourceAccessor (&P4QueueDisc::m_p4Var4),
+                     "ns3::TracedValueCallback::Uint32")
   ;
   return tid;
 }
@@ -162,9 +178,19 @@ P4QueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
   std_meta.flow_hash = item->Hash (); //TODO(sibanez): include perturbation?
   std_meta.drop = false; 
   std_meta.mark = false;
+  std_meta.trace_var1 = m_p4Var1;
+  std_meta.trace_var2 = m_p4Var2;
+  std_meta.trace_var3 = m_p4Var3;
+  std_meta.trace_var4 = m_p4Var4;
 
   // perform P4 processing
   Ptr<Packet> new_packet = m_p4Pipe->process_pipeline(item->GetPacket(), std_meta);
+
+  // update trace variables
+  m_p4Var1 = std_meta.trace_var1;
+  m_p4Var2 = std_meta.trace_var2;
+  m_p4Var3 = std_meta.trace_var3;
+  m_p4Var4 = std_meta.trace_var4;
 
   // replace the QueueDiscItem's packet
   item->SetPacket(new_packet);
@@ -208,6 +234,11 @@ P4QueueDisc::InitializeParams (void)
 {
   NS_LOG_FUNCTION (this);
   NS_LOG_INFO ("Initializing P4 Queue Disc params.");
+
+  m_p4Var1 = 0;
+  m_p4Var2 = 0;
+  m_p4Var3 = 0;
+  m_p4Var4 = 0;
 
   // create and initialize the P4 pipeline
   if (m_p4Pipe == NULL && m_jsonFile != "" && m_commandsFile != "")

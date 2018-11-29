@@ -47,6 +47,10 @@ typedef struct {
   uint32_t flow_hash;  // input
   bool drop;           // output
   bool mark;           // output
+  uint32_t trace_var1; // input/output
+  uint32_t trace_var2; // input/output
+  uint32_t trace_var3; // input/output
+  uint32_t trace_var4; // input/output
 } std_meta_t;
 
 /**

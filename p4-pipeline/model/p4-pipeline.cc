@@ -92,6 +92,10 @@ SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile)
   add_required_field("standard_metadata", "flow_hash");
   add_required_field("standard_metadata", "drop");
   add_required_field("standard_metadata", "mark");
+  add_required_field("standard_metadata", "trace_var1");
+  add_required_field("standard_metadata", "trace_var2");
+  add_required_field("standard_metadata", "trace_var3");
+  add_required_field("standard_metadata", "trace_var4");
 
   force_arith_header("standard_metadata");
 
@@ -171,6 +175,11 @@ SimpleP4Pipe::process_pipeline(Ptr<Packet> ns3_packet, std_meta_t &std_meta) {
   phv->get_field("standard_metadata.l3_proto").set(std_meta.l3_proto);
   phv->get_field("standard_metadata.flow_hash").set(std_meta.flow_hash);
 
+  phv->get_field("standard_metadata.trace_var1").set(std_meta.trace_var1);
+  phv->get_field("standard_metadata.trace_var2").set(std_meta.trace_var2);
+  phv->get_field("standard_metadata.trace_var3").set(std_meta.trace_var3);
+  phv->get_field("standard_metadata.trace_var4").set(std_meta.trace_var4);
+
   BMLOG_DEBUG_PKT(*packet, "Processing received packet");
 
   /* Invoke Parser */
@@ -183,6 +192,12 @@ SimpleP4Pipe::process_pipeline(Ptr<Packet> ns3_packet, std_meta_t &std_meta) {
 
   /* Invoke Deparser */
   deparser->deparse(packet.get());
+
+  /* Set trace variables */
+  std_meta.trace_var1 = phv->get_field("standard_metadata.trace_var1").get_int();
+  std_meta.trace_var2 = phv->get_field("standard_metadata.trace_var2").get_int();
+  std_meta.trace_var3 = phv->get_field("standard_metadata.trace_var3").get_int();
+  std_meta.trace_var4 = phv->get_field("standard_metadata.trace_var4").get_int();
 
   /* Set drop and mark fields */
   int drop = phv->get_field("standard_metadata.drop").get_int();
