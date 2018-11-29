@@ -106,7 +106,9 @@ control MyIngress(inout headers hdr,
         @atomic {
           avg_qdepth_reg.read(avg_qdepth, 0);
           if (standard_metadata.qdepth != 0) {
-              // compute: avg_qdepth = avg_qdepth + ((qdepth - avg_qdepth) >> LOG_QW);
+              // compute: avg_qdepth = avg_qdepth + ((qdepth - avg_qdepth) * 2^LOG_QW);
+              // NOTE: cannot just use a bit shift because bit shifting a negative value
+              // to the right causes leading 1's to be added creating a very large number
               if (qdepth > avg_qdepth) {
                   avg_qdepth = avg_qdepth + ((qdepth - avg_qdepth) >> LOG_QW);
               }
