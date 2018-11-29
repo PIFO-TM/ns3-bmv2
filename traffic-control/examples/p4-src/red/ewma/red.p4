@@ -79,7 +79,7 @@ control MyIngress(inout headers hdr,
             set_decay_factor;
         }
         // If there's a miss in the table the queue has been idle
-        // for a long time and hence it is very likely empty
+        // for a long time and hence we should decay the avg by quite a lot
         const default_action = set_decay_factor(3); //7
         size = NUM_RED_DECAY_FACTORS;
     }
