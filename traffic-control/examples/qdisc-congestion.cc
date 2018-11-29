@@ -72,17 +72,17 @@ Ipv4InterfaceContainer i2i3;
 Ipv4InterfaceContainer i3i4;
 Ipv4InterfaceContainer i3i5;
 
-//std::stringstream filePlotQueue;
 std::stringstream filePlotQueueAvg;
 
 std::string pathOut;
 std::string jsonFile = "";
 std::string commandsFile = "";
-uint32_t qSizeBits = 16;
+uint32_t qSizeBits = 13;
 uint32_t testNum;
 std::string bnLinkDataRate = "1.5Mbps";
 std::string bnLinkDelay = "20ms";
 std::string maxQueueSize = "500KB";
+double maxQueueBytes = 500000.0; // used to convert P4 EWMA samples
 uint32_t meanPktSize = 1000; //500;
 double qW = 0.002;
 
@@ -97,13 +97,17 @@ CheckQueueSize (Ptr<QueueDisc> queue)
   // check queue size every 1/100 of a second
   Simulator::Schedule (Seconds (0.01), &CheckQueueSize, queue);
 
-//  std::ofstream fPlotQueue (filePlotQueue.str ().c_str (), std::ios::out|std::ios::app);
-//  fPlotQueue << Simulator::Now ().GetSeconds () << " " << qSize << std::endl;
-//  fPlotQueue.close ();
-
   std::ofstream fPlotQueueAvg (filePlotQueueAvg.str ().c_str (), std::ios::out|std::ios::app);
   fPlotQueueAvg << Simulator::Now ().GetSeconds () << " " << avgQueueSize / checkTimes << std::endl;
   fPlotQueueAvg.close ();
+}
+
+void
+P4EwmaQueueSizeTrace (Ptr<OutputStreamWrapper> stream, uint32_t oldValue, uint32_t newValue)
+{
+  // convert sample to bytes
+  double avg_qdepth = double(newValue)/((1<<qSizeBits) - 1) * maxQueueBytes; 
+  *stream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << avg_qdepth << std::endl;
 }
 
 void
@@ -481,6 +485,15 @@ main (int argc, char *argv[])
   Ptr<OutputStreamWrapper> dropStream = asciiTraceHelper.CreateFileStream (pathOut + "/" + qdiscSelection + "/" + qdiscSelection + "-drop-times.plotme");
   qdisc->TraceConnectWithoutContext ("Drop", MakeBoundCallback (&TcDropTrace, dropStream));
 
+  if (qdiscSelection == "p4")
+    {
+      //
+      // Configure tracing of the P4 computed EWMA queue size
+      //
+      Ptr<OutputStreamWrapper> p4ewmaStream = asciiTraceHelper.CreateFileStream (pathOut + "/" + qdiscSelection + "/" + qdiscSelection + "-p4ewma-qsize.plotme");
+      qdisc->TraceConnectWithoutContext ("P4Var1", MakeBoundCallback (&P4EwmaQueueSizeTrace, p4ewmaStream));
+    }
+
   BuildAppsTest ();
 
   if (writePcap)
@@ -500,10 +513,8 @@ main (int argc, char *argv[])
 
   if (writeForPlot)
     {
-//      filePlotQueue << pathOut << "/" << qdiscSelection << "/" << qdiscSelection << "-inst-qsize.plotme";
       filePlotQueueAvg << pathOut << "/" << qdiscSelection << "/" << qdiscSelection << "-avg-qsize.plotme";
 
-//      remove (filePlotQueue.str ().c_str ());
       remove (filePlotQueueAvg.str ().c_str ());
       Ptr<QueueDisc> queue = queueDiscs.Get (0);
       Simulator::ScheduleNow (&CheckQueueSize, queue);

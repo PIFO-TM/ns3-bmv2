@@ -8,6 +8,12 @@ const bit<16> TYPE_IPV4 = 0x800;
 
 // This value specifies size for table calc_red_drop_probability.
 const bit<32> NUM_RED_DROP_VALUES = 1<<16; // 2^16
+const bit<32> NUM_RED_DECAY_FACTORS = 1<<16; // 2^16
+
+// RED parameters
+// this should ideally be 9 but bmv2 limits bit shifts to 8
+// qW = 2^(-log_qW) = 0.00390625
+#define LOG_QW 8
 
 /*************************************************************************
 *********************** H E A D E R S  ***********************************
@@ -53,7 +59,30 @@ control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
 
+    register<QueueDepth_t>(1) avg_qdepth_reg;
+
+    QueueDepth_t qdepth;
+    QueueDepth_t avg_qdepth;
+    bit<3> decay_factor; // bmv2 limits bit shift to 8 bits
     bit<9> drop_prob;
+    bit<64> idle_duration;
+
+    action set_decay_factor (bit<3> factor) {
+        decay_factor = factor;
+    }
+
+    table calc_decay_factor {
+        key = {
+            idle_duration : range;
+        }
+        actions = {
+            set_decay_factor;
+        }
+        // If there's a miss in the table the queue has been idle
+        // for a long time and hence it is very likely empty
+        const default_action = set_decay_factor(3); //7
+        size = NUM_RED_DECAY_FACTORS;
+    }
 
     action set_drop_probability (bit<9> drop_probability) {
         drop_prob = drop_probability;
@@ -61,7 +90,7 @@ control MyIngress(inout headers hdr,
 
     table calc_red_drop_probability {
         key = {
-            standard_metadata.avg_qdepth : exact;
+            avg_qdepth : exact;
         }
         actions = {
             set_drop_probability;
@@ -71,6 +100,30 @@ control MyIngress(inout headers hdr,
     }
     
     apply {
+        qdepth = standard_metadata.qdepth;
+
+        // compute EWMA of queue depth
+        @atomic {
+          avg_qdepth_reg.read(avg_qdepth, 0);
+          if (standard_metadata.qdepth != 0) {
+              // compute: avg_qdepth = avg_qdepth + ((qdepth - avg_qdepth) >> LOG_QW);
+              if (qdepth > avg_qdepth) {
+                  avg_qdepth = avg_qdepth + ((qdepth - avg_qdepth) >> LOG_QW);
+              }
+              else {
+                  avg_qdepth = avg_qdepth - ((avg_qdepth - qdepth) >> LOG_QW);
+              }
+          }
+          else {
+              idle_duration = standard_metadata.timestamp - standard_metadata.idle_time;
+              calc_decay_factor.apply();
+              avg_qdepth = avg_qdepth >> decay_factor;
+          }
+          avg_qdepth_reg.write(0, avg_qdepth);
+        }
+        // trace avg_qdepth
+        standard_metadata.trace_var1 = avg_qdepth;
+
         calc_red_drop_probability.apply();
         bit<8> rand_val;
         random<bit<8>>(rand_val, 0, 255);

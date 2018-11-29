@@ -41,6 +41,11 @@ struct standard_metadata_t {
     // outputs
     bit<1>  drop;
     bit<1>  mark;
+    // inputs / outputs
+    bit<32> trace_var1;
+    bit<32> trace_var2;
+    bit<32> trace_var3;
+    bit<32> trace_var4;
 
     /// Error produced by parsing
     error parser_error;
