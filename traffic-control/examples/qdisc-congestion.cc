@@ -129,6 +129,12 @@ TcDropTrace (Ptr<OutputStreamWrapper> stream, Ptr<const QueueDiscItem> item)
 }
 
 void
+ServiceRateTrace (Ptr<OutputStreamWrapper> stream, double oldValue, double newValue)
+{
+  *stream->GetStream () << Simulator::Now ().GetSeconds () << " " << newValue << std::endl;
+}
+
+void
 BuildAppsTest ()
 {
   if ( (testNum == 1) || (testNum == 3) )
@@ -492,6 +498,11 @@ main (int argc, char *argv[])
       //
       Ptr<OutputStreamWrapper> p4ewmaStream = asciiTraceHelper.CreateFileStream (pathOut + "/" + qdiscSelection + "/" + qdiscSelection + "-p4ewma-qsize.plotme");
       qdisc->TraceConnectWithoutContext ("P4Var1", MakeBoundCallback (&P4EwmaQueueSizeTrace, p4ewmaStream));
+      //
+      // Configure tracing of the queue service rate
+      //
+      Ptr<OutputStreamWrapper> serviceRateStream = asciiTraceHelper.CreateFileStream (pathOut + "/" + qdiscSelection + "/" + qdiscSelection + "-service-rate.plotme");
+      qdisc->TraceConnectWithoutContext ("AvgDequeueRate", MakeBoundCallback (&ServiceRateTrace, serviceRateStream));
     }
 
   BuildAppsTest ();
