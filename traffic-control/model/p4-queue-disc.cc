@@ -189,6 +189,7 @@ P4QueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
   std_meta.timestamp = Simulator::Now ().GetNanoSeconds ();
   std_meta.idle_time = m_idleTime.GetNanoSeconds ();
   std_meta.qlatency = m_qLatency;
+  std_meta.avg_deq_rate_bytes = (uint32_t) std::round(m_avgDqRate);
   std_meta.pkt_len = MapSize ((double) item->GetSize ());
   std_meta.pkt_len_bytes = item->GetSize ();
   std_meta.l3_proto = item->GetProtocol ();

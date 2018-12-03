@@ -73,6 +73,10 @@ struct standard_metadata_t {
      * packet. Measured in nanoseconds.
      */
     bit<64> qlatency;
+    /* avg_deq_rate_bytes:
+     * The average queue service rate, measured in bytes/sec.
+     */
+    bit<32> avg_deq_rate_bytes;
     /* pkt_len:
      * The length of the packet. Note that this is not measured in bytes.
      * The packet length is transformed into an integer in the range
