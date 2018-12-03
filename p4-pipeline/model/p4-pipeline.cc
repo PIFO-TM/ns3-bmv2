@@ -84,11 +84,14 @@ SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile)
 {
   // Required fields
   add_required_field("standard_metadata", "qdepth");
+  add_required_field("standard_metadata", "qdepth_bytes");
   add_required_field("standard_metadata", "avg_qdepth");
+  add_required_field("standard_metadata", "avg_qdepth_bytes");
   add_required_field("standard_metadata", "timestamp");
   add_required_field("standard_metadata", "idle_time");
   add_required_field("standard_metadata", "qlatency");
   add_required_field("standard_metadata", "pkt_len");
+  add_required_field("standard_metadata", "pkt_len_bytes");
   add_required_field("standard_metadata", "l3_proto");
   add_required_field("standard_metadata", "flow_hash");
   add_required_field("standard_metadata", "drop");
@@ -169,11 +172,14 @@ SimpleP4Pipe::process_pipeline(Ptr<Packet> ns3_packet, std_meta_t &std_meta) {
   // each add_header / remove_header primitive call
   packet->set_register(PACKET_LENGTH_REG_IDX, len);
   phv->get_field("standard_metadata.qdepth").set(std_meta.qdepth);
+  phv->get_field("standard_metadata.qdepth_bytes").set(std_meta.qdepth_bytes);
   phv->get_field("standard_metadata.avg_qdepth").set(std_meta.avg_qdepth);
+  phv->get_field("standard_metadata.avg_qdepth_bytes").set(std_meta.avg_qdepth_bytes);
   phv->get_field("standard_metadata.timestamp").set(std_meta.timestamp);
   phv->get_field("standard_metadata.idle_time").set(std_meta.idle_time);
   phv->get_field("standard_metadata.qlatency").set(std_meta.qlatency);
   phv->get_field("standard_metadata.pkt_len").set(std_meta.pkt_len);
+  phv->get_field("standard_metadata.pkt_len_bytes").set(std_meta.pkt_len_bytes);
   phv->get_field("standard_metadata.l3_proto").set(std_meta.l3_proto);
   phv->get_field("standard_metadata.flow_hash").set(std_meta.flow_hash);
 

@@ -183,11 +183,14 @@ P4QueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
   //
   std_meta_t std_meta;
   std_meta.qdepth = MapSize ((double) nQueued);
+  std_meta.qdepth_bytes = GetNBytes ();
   std_meta.avg_qdepth = MapSize (m_qAvg);
+  std_meta.avg_qdepth_bytes = (uint32_t) std::round (m_qAvg);
   std_meta.timestamp = Simulator::Now ().GetNanoSeconds ();
   std_meta.idle_time = m_idleTime.GetNanoSeconds ();
   std_meta.qlatency = m_qLatency;
   std_meta.pkt_len = MapSize ((double) item->GetSize ());
+  std_meta.pkt_len_bytes = item->GetSize ();
   std_meta.l3_proto = item->GetProtocol ();
   std_meta.flow_hash = item->Hash (); //TODO(sibanez): include perturbation?
   std_meta.drop = false; 

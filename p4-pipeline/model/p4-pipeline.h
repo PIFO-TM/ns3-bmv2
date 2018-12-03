@@ -38,20 +38,23 @@ namespace ns3 {
  * \brief The standard metadata for the P4 pipeline
  */
 typedef struct {
-  int qdepth;          // input
-  int avg_qdepth;      // input
-  int64_t timestamp;   // input
-  int64_t idle_time;   // input
-  int64_t qlatency;    // input
-  uint32_t pkt_len;    // input
-  uint16_t l3_proto;   // input
-  uint32_t flow_hash;  // input
-  bool drop;           // output
-  bool mark;           // output
-  uint32_t trace_var1; // input/output
-  uint32_t trace_var2; // input/output
-  uint32_t trace_var3; // input/output
-  uint32_t trace_var4; // input/output
+  uint32_t qdepth;            // input
+  uint32_t qdepth_bytes;      // input
+  uint32_t avg_qdepth;        // input
+  uint32_t avg_qdepth_bytes;  // input
+  int64_t timestamp;          // input
+  int64_t idle_time;          // input
+  int64_t qlatency;           // input
+  uint32_t pkt_len;           // input
+  uint32_t pkt_len_bytes;     // input
+  uint16_t l3_proto;          // input
+  uint32_t flow_hash;         // input
+  bool drop;                  // output
+  bool mark;                  // output
+  uint32_t trace_var1;        // input/output
+  uint32_t trace_var2;        // input/output
+  uint32_t trace_var3;        // input/output
+  uint32_t trace_var4;        // input/output
 } std_meta_t;
 
 /**
