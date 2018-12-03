@@ -29,19 +29,78 @@ match_kind {
 
 @metadata @name("standard_metadata")
 struct standard_metadata_t {
-    // inputs
+    //
+    // Inputs
+    //
+    /* qdepth:
+     * The instantaneous size of the queue. Note that this is
+     * not measured in bytes. Here is the equation that converts
+     * qdepthBytes to qdepth:
+     *     qdepth = qdepthBytes/maxSizeBytes * (2^qsizeBits - 1)
+     * Where maxSizeBytes is the maximum size of the queue in bytes,
+     * and qsizeBits is the number of bits that are used to represent
+     * size (both queue and packet). qsizeBits is a configurable
+     * parameter for the p4-queue-disc module in ns3-bmv2.
+     */
     bit<32> qdepth;
+    /* avg_qdepth:
+     * The EWMA of the queue size. Computed using the same technique
+     * as the RED queue disc implementation. Again, note that this is
+     * not measured in bytes, but rather is mapped into an integer in
+     * the range [0, 2^qsizeBits - 1]. See the description of the qdepth
+     * field for an equation to convert bytes to an integer in this range.
+     */
     bit<32> avg_qdepth;
+    /* timestamp:
+     * The time that the packet arrived, measured in nanoseconds.
+     */
     bit<64> timestamp;
+    /* idle_time:
+     * The time when the queue last went empty, measured in nanoseconds.
+     */
     bit<64> idle_time;
+    /* qlatency:
+     * The latest queue latency measurement. Determined by computing the
+     * difference between the enqueue and dequeue timestamps for each
+     * packet. Measured in nanoseconds.
+     */
     bit<64> qlatency;
+    /* pkt_len:
+     * The length of the packet. Note that this is not measured in bytes.
+     * The packet length is transformed into an integer in the range
+     * [0, 2^qsizeBits - 1] so that it is directly comparable to the 
+     * qdepth and avg_qdepth fields.
+     */
     bit<32> pkt_len;
+    /* l3_proto:
+     * The L3 protocol number (IPv4, IPv6, etc.)
+     */
     bit<16> l3_proto;
+    /* flow_hash:
+     * A hash of identifying packet fields, e.g. the 5-tuple. Can be used
+     * to identify flows.
+     */
     bit<32> flow_hash;
-    // outputs
+    //
+    // Outputs
+    //
+    /* drop:
+     * If set then p4-queue-disc will drop the packet.
+     */
     bit<1>  drop;
+    /* mark:
+     * If set then p4-queue-disc will mark the packet (e.g. set ECN bit).
+     */
     bit<1>  mark;
-    // inputs / outputs
+    //
+    // Inputs / Outputs
+    //
+    /* tarce_vars:
+     * These are intended to be used for debugging purposes. The p4-queue-disc
+     * has attached trace sources to these fields so that NS3 user scripts
+     * can attach trace sinks to them can hence can track all changes made to
+     * them. 
+     */
     bit<32> trace_var1;
     bit<32> trace_var2;
     bit<32> trace_var3;

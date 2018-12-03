@@ -135,6 +135,12 @@ ServiceRateTrace (Ptr<OutputStreamWrapper> stream, double oldValue, double newVa
 }
 
 void
+QueueLatencyTrace (Ptr<OutputStreamWrapper> stream, int64_t oldValue, int64_t newValue)
+{
+  *stream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << newValue << std::endl;
+}
+
+void
 BuildAppsTest ()
 {
   if ( (testNum == 1) || (testNum == 3) )
@@ -503,6 +509,11 @@ main (int argc, char *argv[])
       //
       Ptr<OutputStreamWrapper> serviceRateStream = asciiTraceHelper.CreateFileStream (pathOut + "/" + qdiscSelection + "/" + qdiscSelection + "-service-rate.plotme");
       qdisc->TraceConnectWithoutContext ("AvgDequeueRate", MakeBoundCallback (&ServiceRateTrace, serviceRateStream));
+      //
+      // Configure tracing of the queue latency 
+      //
+      Ptr<OutputStreamWrapper> qlatencyStream = asciiTraceHelper.CreateFileStream (pathOut + "/" + qdiscSelection + "/" + qdiscSelection + "-qlatency.plotme");
+      qdisc->TraceConnectWithoutContext ("QueueLatency", MakeBoundCallback (&QueueLatencyTrace, qlatencyStream));
     }
 
   BuildAppsTest ();
