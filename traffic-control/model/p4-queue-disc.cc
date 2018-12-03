@@ -78,10 +78,23 @@ TypeId P4QueueDisc::GetTypeId (void)
                    DoubleValue (0.002),
                    MakeDoubleAccessor (&P4QueueDisc::m_qW),
                    MakeDoubleChecker <double> ())
+    .AddAttribute ("DequeueThreshold",
+                   "Minimum queue size in bytes before dequeue rate is measured",
+                   UintegerValue (10000),
+                   MakeUintegerAccessor (&P4QueueDisc::m_dqThreshold),
+                   MakeUintegerChecker<uint32_t> ())
     .AddTraceSource ("AvgQueueSize",
                      "The computed EWMA of the queue size",
                      MakeTraceSourceAccessor (&P4QueueDisc::m_qAvg),
                      "ns3::TracedValueCallback::Double")
+    .AddTraceSource ("AvgDequeueRate",
+                     "The time average dequeue rate",
+                     MakeTraceSourceAccessor (&P4QueueDisc::m_avgDqRate),
+                     "ns3::TracedValueCallback::Double")
+    .AddTraceSource ("QueueLatency",
+                     "Per-packet queue latency measurements (ns)",
+                     MakeTraceSourceAccessor (&P4QueueDisc::m_qLatency),
+                     "ns3::TracedValueCallback::Int64")
     .AddTraceSource ("P4Var1",
                      "1st traced P4 variable",
                      MakeTraceSourceAccessor (&P4QueueDisc::m_p4Var1),
@@ -173,6 +186,7 @@ P4QueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
   std_meta.avg_qdepth = MapSize (m_qAvg);
   std_meta.timestamp = Simulator::Now ().GetNanoSeconds ();
   std_meta.idle_time = m_idleTime.GetNanoSeconds ();
+  std_meta.qlatency = m_qLatency;
   std_meta.pkt_len = MapSize ((double) item->GetSize ());
   std_meta.l3_proto = item->GetProtocol ();
   std_meta.flow_hash = item->Hash (); //TODO(sibanez): include perturbation?
@@ -206,6 +220,9 @@ P4QueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
       NS_LOG_DEBUG ("Marking packet because P4 program said to");
       item->Mark();
     }
+
+  // set enqueue timestamp
+  item->SetTimeStamp (Simulator::Now());
 
   bool retval = GetQueueDiscClass (0)->GetQueueDisc ()->Enqueue (item);
 
@@ -252,6 +269,13 @@ P4QueueDisc::InitializeParams (void)
   m_qAvg = 0.0;
   m_idle = 1;
   m_idleTime = NanoSeconds (0);
+  m_qLatency = 0;
+
+  // dequeue rate measurement vars
+  m_inMeasurement = false;
+  m_dqCount = DQCOUNT_INVALID;
+  m_avgDqRate = 0.0;
+  m_dqStart = 0;
 
 /*
  * If m_qW=0, set it to a reasonable value of 1-exp(-1/C)
@@ -324,6 +348,61 @@ P4QueueDisc::DoDequeue (void)
 
       NS_LOG_LOGIC ("Popped from qdisc: " << item);
       NS_LOG_LOGIC ("Number packets in qdisc: " << GetQueueDiscClass (0)->GetQueueDisc ()->GetNPackets ());
+
+      // update queue latency measurement
+      m_qLatency = Simulator::Now().GetNanoSeconds() - item->GetTimeStamp().GetNanoSeconds();
+
+      /* NOTE: the code below is taken from pie-queue-disc.cc to compute dequeue rate measurements */
+      double now = Simulator::Now ().GetSeconds ();
+      uint32_t pktSize = item->GetSize ();
+
+      // if not in a measurement cycle and the queue has built up to dq_threshold,
+      // start the measurement cycle
+    
+      if ( (GetQueueDiscClass (0)->GetQueueDisc ()->GetNBytes () >= m_dqThreshold) && (!m_inMeasurement) )
+        {
+          m_dqStart = now;
+          m_dqCount = 0;
+          m_inMeasurement = true;
+        }
+    
+      if (m_inMeasurement)
+        {
+          m_dqCount += pktSize;
+    
+          // done with a measurement cycle
+          if (m_dqCount >= m_dqThreshold)
+            {
+    
+              double tmp = now - m_dqStart;
+    
+              if (tmp > 0)
+                {
+                  if (m_avgDqRate == 0)
+                    {
+                      m_avgDqRate = m_dqCount / tmp;
+                    }
+                  else
+                    {
+                      m_avgDqRate = (0.5 * m_avgDqRate) + (0.5 * (m_dqCount / tmp));
+                    }
+                }
+    
+              // restart a measurement cycle if there is enough data
+              if (GetQueueDiscClass (0)->GetQueueDisc ()->GetNBytes () > m_dqThreshold)
+                {
+                  m_dqStart = now;
+                  m_dqCount = 0;
+                  m_inMeasurement = true;
+                }
+              else
+                {
+                  m_dqCount = 0;
+                  m_inMeasurement = false;
+                }
+            }
+        }
+
       return item;
     }
 }

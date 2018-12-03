@@ -27,7 +27,6 @@ match_kind {
     selector
 }
 
-// Are these correct?
 @metadata @name("standard_metadata")
 struct standard_metadata_t {
     // inputs
@@ -35,6 +34,7 @@ struct standard_metadata_t {
     bit<32> avg_qdepth;
     bit<64> timestamp;
     bit<64> idle_time;
+    bit<64> qlatency;
     bit<32> pkt_len;
     bit<16> l3_proto;
     bit<32> flow_hash;

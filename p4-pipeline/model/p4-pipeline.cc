@@ -87,6 +87,7 @@ SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile)
   add_required_field("standard_metadata", "avg_qdepth");
   add_required_field("standard_metadata", "timestamp");
   add_required_field("standard_metadata", "idle_time");
+  add_required_field("standard_metadata", "qlatency");
   add_required_field("standard_metadata", "pkt_len");
   add_required_field("standard_metadata", "l3_proto");
   add_required_field("standard_metadata", "flow_hash");
@@ -171,6 +172,7 @@ SimpleP4Pipe::process_pipeline(Ptr<Packet> ns3_packet, std_meta_t &std_meta) {
   phv->get_field("standard_metadata.avg_qdepth").set(std_meta.avg_qdepth);
   phv->get_field("standard_metadata.timestamp").set(std_meta.timestamp);
   phv->get_field("standard_metadata.idle_time").set(std_meta.idle_time);
+  phv->get_field("standard_metadata.qlatency").set(std_meta.qlatency);
   phv->get_field("standard_metadata.pkt_len").set(std_meta.pkt_len);
   phv->get_field("standard_metadata.l3_proto").set(std_meta.l3_proto);
   phv->get_field("standard_metadata.flow_hash").set(std_meta.flow_hash);
