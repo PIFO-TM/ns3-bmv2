@@ -1,10 +1,8 @@
 /* -*- P4_16 -*- */
 #include <core.p4>
-//#include <v1model.p4>
 #include "simple_pipe.p4"
 
 typedef bit<32> QueueDepth_t;
-const bit<16> TYPE_IPV4 = 0x800;
 
 // This value specifies size for table calc_red_drop_probability.
 const bit<32> NUM_RED_DROP_VALUES = 1<<16; // 2^16
