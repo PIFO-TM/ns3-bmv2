@@ -3,6 +3,12 @@
 #include "simple_pipe.p4"
 #include "division.p4"
 
+/*
+ * An implementation of the AFD AQM algorithm as described in
+ * the following paper:
+ *   - https://people.eecs.berkeley.edu/~istoica/classes/cs268/10/papers/afd.pdf
+ */
+
 typedef bit<32> QueueDepth_t;
 typedef bit<32> FlowID_t;
 typedef bit<8> Prob_t;
