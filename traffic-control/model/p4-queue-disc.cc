@@ -37,6 +37,9 @@ NS_LOG_COMPONENT_DEFINE ("P4QueueDisc");
 
 NS_OBJECT_ENSURE_REGISTERED (P4QueueDisc);
 
+// Initialize static members
+Ptr<Packet> P4QueueDisc::default_packet = Create<Packet> ();
+
 TypeId P4QueueDisc::GetTypeId (void)
 {
   static TypeId tid = TypeId ("ns3::P4QueueDisc")
@@ -120,6 +123,8 @@ P4QueueDisc::P4QueueDisc ()
 {
   NS_LOG_FUNCTION (this);
   m_p4Pipe = NULL;
+  // Schedule initial timer event 
+  m_timerEvent = Simulator::Schedule (Time ("1ns"), &P4QueueDisc::RunTimerEvent, this);
 }
 
 P4QueueDisc::~P4QueueDisc ()
@@ -161,6 +166,24 @@ P4QueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
 {
   NS_LOG_FUNCTION (this << item);
 
+  // Check to make sure that a timer event has not
+  // already been executed in this time slot
+  int64_t timerDelay = Simulator::GetDelayLeft (m_timerEvent).GetNanoSeconds();
+  if (timerDelay == 0)
+    {
+      // The timer event for this time slot has not been executed yet
+      // Cancel the timer event for this slot and reschedule it for
+      // the next slot
+      Simulator::Cancel(m_timerEvent);
+      m_timerEvent = Simulator::Schedule (Time ("1ns"), &P4QueueDisc::RunTimerEvent, this);
+    }
+  else
+    {
+      // The timer event for this time slot has already executed!
+      // abort fail
+      NS_ABORT_MSG("The timer event has already been executed and a legit packet has arrived!");
+    }
+
   //
   // Compute average queue size
   //
@@ -194,6 +217,7 @@ P4QueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
   std_meta.pkt_len_bytes = item->GetSize ();
   std_meta.l3_proto = item->GetProtocol ();
   std_meta.flow_hash = item->Hash (); //TODO(sibanez): include perturbation?
+  std_meta.timer_trigger = false;
   std_meta.drop = false; 
   std_meta.mark = false;
   std_meta.trace_var1 = m_p4Var1;
@@ -236,6 +260,51 @@ P4QueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
   NS_LOG_LOGIC ("Number packets in queue disc " << GetQueueDiscClass (0)->GetQueueDisc ()->GetNPackets ());
 
   return retval;
+}
+
+void
+P4QueueDisc::RunTimerEvent ()
+{
+  NS_LOG_FUNCTION (this);
+  NS_LOG_INFO ("Executing timer event");
+
+  uint32_t nQueued = GetCurrentSize ().GetValue (); 
+
+  //
+  // Initialize standard metadata
+  //
+  std_meta_t std_meta;
+  std_meta.qdepth = MapSize ((double) nQueued);
+  std_meta.qdepth_bytes = GetNBytes ();
+  std_meta.avg_qdepth = MapSize (m_qAvg);
+  std_meta.avg_qdepth_bytes = (uint32_t) std::round (m_qAvg);
+  std_meta.timestamp = Simulator::Now ().GetNanoSeconds ();
+  std_meta.idle_time = m_idleTime.GetNanoSeconds ();
+  std_meta.qlatency = m_qLatency;
+  std_meta.avg_deq_rate_bytes = (uint32_t) std::round(m_avgDqRate);
+  std_meta.pkt_len = 0;
+  std_meta.pkt_len_bytes = 0;
+  std_meta.l3_proto = 0;
+  std_meta.flow_hash = 0;
+  std_meta.timer_trigger = true;
+  std_meta.drop = false; 
+  std_meta.mark = false;
+  std_meta.trace_var1 = m_p4Var1;
+  std_meta.trace_var2 = m_p4Var2;
+  std_meta.trace_var3 = m_p4Var3;
+  std_meta.trace_var4 = m_p4Var4;
+
+  // perform P4 processing
+  m_p4Pipe->process_pipeline(default_packet, std_meta);
+
+  // update trace variables
+  m_p4Var1 = std_meta.trace_var1;
+  m_p4Var2 = std_meta.trace_var2;
+  m_p4Var3 = std_meta.trace_var3;
+  m_p4Var4 = std_meta.trace_var4;
+
+  // Reschedule timer event
+  m_timerEvent = Simulator::Schedule (Time ("1ns"), &P4QueueDisc::RunTimerEvent, this);
 }
 
 uint32_t

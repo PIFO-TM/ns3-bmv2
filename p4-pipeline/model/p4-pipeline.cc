@@ -95,6 +95,7 @@ SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile)
   add_required_field("standard_metadata", "pkt_len_bytes");
   add_required_field("standard_metadata", "l3_proto");
   add_required_field("standard_metadata", "flow_hash");
+  add_required_field("standard_metadata", "timer_trigger");
   add_required_field("standard_metadata", "drop");
   add_required_field("standard_metadata", "mark");
   add_required_field("standard_metadata", "trace_var1");
@@ -184,6 +185,7 @@ SimpleP4Pipe::process_pipeline(Ptr<Packet> ns3_packet, std_meta_t &std_meta) {
   phv->get_field("standard_metadata.pkt_len_bytes").set(std_meta.pkt_len_bytes);
   phv->get_field("standard_metadata.l3_proto").set(std_meta.l3_proto);
   phv->get_field("standard_metadata.flow_hash").set(std_meta.flow_hash);
+  phv->get_field("standard_metadata.timer_trigger").set(std_meta.timer_trigger);
 
   phv->get_field("standard_metadata.trace_var1").set(std_meta.trace_var1);
   phv->get_field("standard_metadata.trace_var2").set(std_meta.trace_var2);

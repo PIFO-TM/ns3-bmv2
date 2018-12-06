@@ -50,6 +50,7 @@ typedef struct {
   uint32_t pkt_len_bytes;       // input
   uint16_t l3_proto;            // input
   uint32_t flow_hash;           // input
+  bool timer_trigger;           // input
   bool drop;                    // output
   bool mark;                    // output
   uint32_t trace_var1;          // input/output

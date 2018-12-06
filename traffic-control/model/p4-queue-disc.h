@@ -75,6 +75,11 @@ private:
   virtual bool CheckConfig (void);
 
   /**
+   * \brief The function to execute when a timer event is triggered
+   */
+  void RunTimerEvent (void);
+
+  /**
    * \brief Map a double in the range [0, GetMaxSize()] to an integer
    *  in the range [0, 2^m_qSizeBits - 1].
    *  \param size a numeric (double) size value to convert
@@ -121,8 +126,10 @@ private:
   TracedValue<double> m_avgDqRate;   //!< Time averaged dequeue rate
   double m_dqStart;                  //!< Start timestamp of current measurement cycle
   uint64_t m_dqCount;                //!< Number of bytes departed since current measurement cycle starts
-  bool m_inMeasurement;                         //!< Indicates whether we are in a measurement cycle
+  bool m_inMeasurement;              //!< Indicates whether we are in a measurement cycle
   TracedValue<int64_t> m_qLatency;   //!< Instantaneous queue latency (ns)
+  EventId m_timerEvent;              //!< The timer event ID
+  static Ptr<Packet> default_packet; //!< default packet to use for timer events
 
   TracedValue<uint32_t> m_p4Var1; //!< 1st traced P4 variable
   TracedValue<uint32_t> m_p4Var2; //!< 2nd traced P4 variable
