@@ -116,6 +116,7 @@ private:
   DataRate m_linkBandwidth;    //!< Link bandwidth
   double m_qW;                 //!< Queue weight given to cur queue size sample
   uint32_t m_dqThreshold;      //!< Minimum queue size in bytes before dequeue rate is measured
+  Time m_timeReference;        //!< Desired time between timer event triggers
 
   // ** Variables maintained by the queue disc
   SimpleP4Pipe *m_p4Pipe;            //!< The P4 pipeline

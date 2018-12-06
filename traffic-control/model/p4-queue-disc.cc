@@ -86,6 +86,11 @@ TypeId P4QueueDisc::GetTypeId (void)
                    UintegerValue (10000),
                    MakeUintegerAccessor (&P4QueueDisc::m_dqThreshold),
                    MakeUintegerChecker<uint32_t> ())
+    .AddAttribute ("TimeReference", 
+                   "The desired time between timer events",
+                   TimeValue (MilliSeconds (0)), // default disabled
+                   MakeTimeAccessor (&P4QueueDisc::m_timeReference),
+                   MakeTimeChecker ())
     .AddTraceSource ("AvgQueueSize",
                      "The computed EWMA of the queue size",
                      MakeTraceSourceAccessor (&P4QueueDisc::m_qAvg),
@@ -122,9 +127,8 @@ P4QueueDisc::P4QueueDisc ()
   : QueueDisc (QueueDiscSizePolicy::SINGLE_CHILD_QUEUE_DISC, QueueSizeUnit::BYTES)
 {
   NS_LOG_FUNCTION (this);
-  m_p4Pipe = NULL;
-  // Schedule initial timer event 
-  m_timerEvent = Simulator::Schedule (Time ("1ns"), &P4QueueDisc::RunTimerEvent, this);
+  m_p4Pipe = NULL; 
+  m_timerEvent = EventId(); // default initial value
 }
 
 P4QueueDisc::~P4QueueDisc ()
@@ -166,23 +170,13 @@ P4QueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
 {
   NS_LOG_FUNCTION (this << item);
 
-  // Check to make sure that a timer event has not
-  // already been executed in this time slot
-  int64_t timerDelay = Simulator::GetDelayLeft (m_timerEvent).GetNanoSeconds();
-  if (timerDelay == 0)
-    {
-      // The timer event for this time slot has not been executed yet
-      // Cancel the timer event for this slot and reschedule it for
-      // the next slot
-      Simulator::Cancel(m_timerEvent);
-      m_timerEvent = Simulator::Schedule (Time ("1ns"), &P4QueueDisc::RunTimerEvent, this);
-    }
-  else
-    {
-      // The timer event for this time slot has already executed!
-      // abort fail
-      NS_ABORT_MSG("The timer event has already been executed and a legit packet has arrived!");
-    }
+  // TODO(sibanez): potentially need to cancel the timer event
+  // if there is one scheduled for this time slot and it has
+  // not executed yet. The problem is: what if there was a timer
+  // event scheduled for this time slot but it already executed?
+  // Since we are not doing any timer event canceling for now
+  // this means that we could end up with both legit and generated
+  // packets being processed by the P4 pipeline in the same time slot
 
   //
   // Compute average queue size
@@ -304,7 +298,7 @@ P4QueueDisc::RunTimerEvent ()
   m_p4Var4 = std_meta.trace_var4;
 
   // Reschedule timer event
-  m_timerEvent = Simulator::Schedule (Time ("1ns"), &P4QueueDisc::RunTimerEvent, this);
+  m_timerEvent = Simulator::Schedule (m_timeReference, &P4QueueDisc::RunTimerEvent, this);
 }
 
 uint32_t
@@ -548,6 +542,13 @@ P4QueueDisc::CheckConfig (void)
     {
       NS_LOG_ERROR ("P4QueueDisc is not configured with a CLI commands file");
       return false;
+    }
+
+  // Check if timer events should be scheduled
+  if (!m_timeReference.IsZero())
+    {
+      NS_LOG_DEBUG ("Scheduling initial timer event using m_timeReference = " << m_timeReference.GetNanoSeconds() << " ns");
+      m_timerEvent = Simulator::Schedule (m_timeReference, &P4QueueDisc::RunTimerEvent, this);
     }
 
   return true;
