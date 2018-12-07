@@ -270,7 +270,7 @@ SetupApps ()
   for (int i = 0; i < numApps; i++)
     {
       // Install Sources
-      dstAddrStr = "10.2." + std::to_string (i+1) + ".0";
+      dstAddrStr = "10.2." + std::to_string (i+1) + ".1";
       dstAddr = Address (InetSocketAddress (Ipv4Address (dstAddrStr.c_str()), port));
       OnOffHelper onoff ("ns3::UdpSocketFactory", dstAddr);
       onoff.SetConstantRate (DataRate (sendRate), meanPktSize);
