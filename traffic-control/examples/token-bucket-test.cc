@@ -46,6 +46,23 @@ using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("SimpleP4QdiscExample");
 
+uint32_t txBytes = 0;
+uint32_t rxBytes = 0;
+
+void
+TxTrace (Ptr<OutputStreamWrapper> stream, Ptr<const Packet> pkt)
+{
+  txBytes += pkt->GetSize();
+  *stream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << txBytes << std::endl;
+}
+
+void
+RxTrace (Ptr<OutputStreamWrapper> stream, Ptr<const Packet> pkt, const Address &address)
+{
+  rxBytes += pkt->GetSize();
+  *stream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << rxBytes << std::endl;
+}
+
 void
 TcBytesInQueueTrace (Ptr<OutputStreamWrapper> stream, uint32_t oldValue, uint32_t newValue)
 {
@@ -53,22 +70,11 @@ TcBytesInQueueTrace (Ptr<OutputStreamWrapper> stream, uint32_t oldValue, uint32_
 }
 
 void
-TcDropTrace (Ptr<const QueueDiscItem> item)
+TcDropTrace (Ptr<OutputStreamWrapper> stream, Ptr<const QueueDiscItem> item)
 {
-  std::cout << "TC dropped packet!" << std::endl;
+  *stream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << item->GetSize() << std::endl;
 }
 
-void
-DeviceBytesInQueueTrace (Ptr<OutputStreamWrapper> stream, uint32_t oldValue, uint32_t newValue)
-{
-  *stream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << newValue << std::endl;
-}
-
-void
-DeviceDropTrace (Ptr<const Packet> p)
-{
-  std::cout << "Device dropped packet!" << std::endl;
-}
 
 int 
 main (int argc, char *argv[])
@@ -82,6 +88,10 @@ main (int argc, char *argv[])
   std::string pathOut = "outdir/token-bucket";
   std::string jsonFile = "src/traffic-control/examples/p4-src/token-bucket/token-bucket.json";
   std::string commandsFile = "src/traffic-control/examples/p4-src/token-bucket/commands.txt";
+  std::string sendRate = "2Mbps";
+  std::string linkRate = "5Mbps";
+  std::string timeReference = "1ms";
+  uint32_t pktSize = 500;
 
   //
   // Allow the user to override any of the defaults and the above Bind() at
@@ -103,7 +113,7 @@ main (int argc, char *argv[])
 
   NS_LOG_INFO ("Build Topology");
   CsmaHelper csma;
-  csma.SetChannelAttribute ("DataRate", DataRateValue (DataRate ("5Mbps")));
+  csma.SetChannelAttribute ("DataRate", DataRateValue (DataRate (linkRate)));
   csma.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (2)));
 
   // Create the csma links, from each terminal to the router
@@ -124,10 +134,10 @@ main (int argc, char *argv[])
                         "QueueSizeBits", UintegerValue (16), // # bits used to represent range of values
                         // used for avg queue size computation
                         "QW", DoubleValue (0.002),
-                        "MeanPktSize", UintegerValue (500),
-                        "LinkBandwidth", DataRateValue (DataRate ("5Mbps")),
+                        "MeanPktSize", UintegerValue (pktSize),
+                        "LinkBandwidth", DataRateValue (DataRate (linkRate)),
                         // To ensure std_meta.timer_trigger is set every ms
-                        "TimeReference", TimeValue (Time ("1ms"))
+                        "TimeReference", TimeValue (Time (timeReference))
                         );
 
   // Install Queue Disc on the router interface towards n2
@@ -156,8 +166,8 @@ main (int argc, char *argv[])
   Address n1Address (InetSocketAddress (Ipv4Address ("10.1.2.1"), port));
 
   OnOffHelper onoff ("ns3::UdpSocketFactory", n1Address);
-  onoff.SetConstantRate (DataRate ("3Mbps"));
-  onoff.SetAttribute ("MaxBytes", UintegerValue (1000));
+  onoff.SetConstantRate (DataRate (sendRate), pktSize);
+//  onoff.SetAttribute ("MaxBytes", UintegerValue (1000));
 
   // Start the application on n0
   ApplicationContainer app = onoff.Install (n0);
@@ -171,13 +181,24 @@ main (int argc, char *argv[])
 
   NS_LOG_INFO ("Configure Tracing.");
   //
-  // Configure tracing of both TC queue and NetDevice Queue at bottleneck 
+  // Configure tracing of P4 qdisc
   //
   AsciiTraceHelper asciiTraceHelper;
-  Ptr<OutputStreamWrapper> tcStream = asciiTraceHelper.CreateFileStream (pathOut + "/tc-qsize.txt");
+  Ptr<OutputStreamWrapper> qsizeStream = asciiTraceHelper.CreateFileStream (pathOut + "/qsize.plotme");
   Ptr<QueueDisc> qdisc = qdiscs.Get (0);
-  qdisc->TraceConnectWithoutContext ("BytesInQueue", MakeBoundCallback (&TcBytesInQueueTrace, tcStream));
-  qdisc->TraceConnectWithoutContext ("Drop", MakeCallback (&TcDropTrace));
+  qdisc->TraceConnectWithoutContext ("BytesInQueue", MakeBoundCallback (&TcBytesInQueueTrace, qsizeStream));
+  Ptr<OutputStreamWrapper> dropStream = asciiTraceHelper.CreateFileStream (pathOut + "/drop-times.plotme");
+  qdisc->TraceConnectWithoutContext ("Drop", MakeBoundCallback (&TcDropTrace, dropStream));
+  //
+  // Configure tracing of traffic source
+  //
+  Ptr<OutputStreamWrapper> txStream = asciiTraceHelper.CreateFileStream (pathOut + "/tx-bytes.plotme");
+  Config::ConnectWithoutContext ("/NodeList/0/ApplicationList/0/$ns3::OnOffApplication/Tx", MakeBoundCallback (&TxTrace, txStream));
+  //
+  // Configure tracing of traffic sink
+  //
+  Ptr<OutputStreamWrapper> rxStream = asciiTraceHelper.CreateFileStream (pathOut + "/rx-bytes.plotme");
+  Config::ConnectWithoutContext ("/NodeList/1/ApplicationList/0/$ns3::PacketSink/Rx", MakeBoundCallback (&RxTrace, rxStream));
 
   //
   // Setup pcap capture on n1's NetDevice.
@@ -185,6 +206,11 @@ main (int argc, char *argv[])
   // display timestamps correctly)
   //
   csma.EnablePcap (pathOut + "/remote", n1Device);
+
+  // Setup flow monitor
+  Ptr<FlowMonitor> flowmon;
+  FlowMonitorHelper flowmonHelper;
+  flowmon = flowmonHelper.InstallAll ();
 
   // Set Simulation stop time
   Simulator::Stop (Time ("2s"));
@@ -194,6 +220,12 @@ main (int argc, char *argv[])
   //
   NS_LOG_INFO ("Run Simulation.");
   Simulator::Run ();
+
+  // Write flow monitor stats
+  std::stringstream stmp;
+  stmp << pathOut << "/flowmon.txt";
+  flowmon->SerializeToXmlFile (stmp.str ().c_str (), false, false);
+
   Simulator::Destroy ();
   NS_LOG_INFO ("Done.");
 }

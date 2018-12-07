@@ -9,8 +9,10 @@
 
 typedef bit<32> uint_t;
 
-const uint_t FILL_RATE = 10; // tokens / slot
-const uint_t MAX_TOKENS = 1000000;
+// time reference = 1ms
+// FILL_RATE = 125 bytes/ms = 1Mbps
+const uint_t FILL_RATE = 125; // bytes / slot
+const uint_t MAX_TOKENS = 1000; // two 500B packets
 
 /*************************************************************************
 *********************** H E A D E R S  ***********************************
@@ -56,17 +58,6 @@ control token_bucket(in bit<1> timer_trigger, // set deterministically every PER
                      in uint_t request, // number of requested tokens
                      out bool result)
 {
-    table dummy_table {
-        key = {
-            timer_trigger : exact;
-        }
-        actions = {
-            NoAction;
-        }
-        const default_action = NoAction;
-        size = 10;
-    }
-
     // externs
     register<uint_t>(1) tokens_reg;
 
@@ -74,7 +65,6 @@ control token_bucket(in bit<1> timer_trigger, // set deterministically every PER
     uint_t tokens;
 
     apply {
-        dummy_table.apply();
         @atomic {
             tokens_reg.read(tokens, 0);
             if (timer_trigger == 1) {
