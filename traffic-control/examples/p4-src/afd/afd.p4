@@ -78,8 +78,8 @@ control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
  * This control block is executed at rate fs = 160Hz in the AFD paper.
  * So this control block should be executed every 1/(160Hz) = 6.25ms
  */
-control compute_fair_count_pipe(in QueueDepth_t qdepth,
-                                in QueueDepth_t qtarget,
+control compute_fair_count_pipe(in bit<1> timer_trigger,
+                                in QueueDepth_t qdepth,
                                 out QueueDepth_t fair_count) {
 
     register<QueueDepth_t>(1) fair_count_reg;
@@ -90,13 +90,17 @@ control compute_fair_count_pipe(in QueueDepth_t qdepth,
         QueueDepth_t old_qdepth;
 
         @atomic {
-            fair_count_reg.read(old_fair_count, 0);
-            qdepth_reg.read(old_qdepth, 0);
-            // TODO: What happens when a negative number is bit shifted to the right? We want it to
-            // keep it's sign and increase the magnitude.
-            fair_count = old_fair_count + ((old_qdepth - qtarget) << ALPHA) - ((qdepth - qtarget) << BETA);
-            fair_count_reg.write(0, fair_count);
-            qdepth_reg.write(0, qdepth);
+            fair_count_reg.read(fair_count, 0);
+            if (timer_trigger == 1) {
+                old_fair_count = fair_count;
+                // executes every timer event
+                qdepth_reg.read(old_qdepth, 0);
+                // TODO: What happens when a negative number is bit shifted to the right? We want it to
+                // keep it's sign and increase the magnitude.
+                fair_count = old_fair_count + ((old_qdepth - QTARGET) << ALPHA) - ((qdepth - QTARGET) << BETA);
+                fair_count_reg.write(0, fair_count);
+                qdepth_reg.write(0, qdepth);
+            }
         }
     }
 }
@@ -123,56 +127,64 @@ control MyIngress(inout headers hdr,
         QueueDepth_t flow_count;
         QueueDepth_t qdepth = standard_metadata.qdepth;
         QueueDepth_t fair_count;
+        bit<1> timer_trigger = standard_metadata.timer_trigger;
 
-        // Insert packet into shadow_buffer w/ some probability
-        random<Prob_t>(rand_val, 0, 255);
-        if (rand_val < SAMPLE_RATE) {
-            // Access the shadow_buffer
-            insert_pkt = true;
-            ShadowIdx_t rand_idx;
-            // Select a random packet to replace
-            random<ShadowIdx_t>(rand_idx, 0, NUM_SHADOW_ENTRIES-1);
-            @atomic {
-                shadow_buf_sizes.read(size_to_remove, (bit<32>)rand_idx);
-                shadow_buf_sizes.write((bit<32>)rand_idx, size_to_add);
+        if (timer_trigger == 0) {
+            // Insert packet into shadow_buffer w/ some probability
+            random<Prob_t>(rand_val, 0, 255);
+            if (rand_val < SAMPLE_RATE) {
+                // Access the shadow_buffer
+                insert_pkt = true;
+                ShadowIdx_t rand_idx;
+                // Select a random packet to replace
+                random<ShadowIdx_t>(rand_idx, 0, NUM_SHADOW_ENTRIES-1);
+                @atomic {
+                    shadow_buf_sizes.read(size_to_remove, (bit<32>)rand_idx);
+                    shadow_buf_sizes.write((bit<32>)rand_idx, size_to_add);
+                }
+                @atomic {
+                    shadow_buf_flowIDs.read(flow_to_remove, (bit<32>)rand_idx);
+                    shadow_buf_flowIDs.write((bit<32>)rand_idx, flow_to_add);
+                }
             }
+
+            /* Access the flow table to get flow_count (equivalent of m_i in the AFD paper)
+             * Note that this requires 2 read & 2 write operations
+             * to the flow_table
+             */
+            bit<32> flow_idx = (bit<32>)flow_to_add[L2_FLOW_ENTRIES-1:0];
             @atomic {
-                shadow_buf_flowIDs.read(flow_to_remove, (bit<32>)rand_idx);
-                shadow_buf_flowIDs.write((bit<32>)rand_idx, flow_to_add);
+                flow_table.read(flow_count, flow_idx);
+                if (insert_pkt) {
+                    // pkt was inserted into shadow buffer
+                    flow_count = flow_count |+| size_to_add;
+                    flow_table.write(flow_idx, flow_count);
+
+                    // Decrement the count for the remove pkt
+                    QueueDepth_t count;
+                    flow_idx = (bit<32>)flow_to_remove[L2_FLOW_ENTRIES-1:0]; 
+                    flow_table.read(count, flow_idx);
+                    count = count |-| size_to_remove;
+                    flow_table.write(flow_idx, count);
+                }
             }
         }
-
-        /* Access the flow table to get flow_count (equivalent of m_i in the AFD paper)
-         * Note that this requires 2 read & 2 write operations
-         * to the flow_table
-         */
-        bit<32> flow_idx = (bit<32>)flow_to_add[L2_FLOW_ENTRIES-1:0];
-        @atomic {
-            flow_table.read(flow_count, flow_idx);
-            if (insert_pkt) {
-                // pkt was inserted into shadow buffer
-                flow_count = flow_count |+| size_to_add;
-                flow_table.write(flow_idx, flow_count);
-
-                // Decrement the count for the remove pkt
-                QueueDepth_t count;
-                flow_idx = (bit<32>)flow_to_remove[L2_FLOW_ENTRIES-1:0]; 
-                flow_table.read(count, flow_idx);
-                count = count |-| size_to_remove;
-                flow_table.write(flow_idx, count);
-            }
+        else {
+            flow_count = 0;
         }
 
         // Compute fair_count (equivalent of m_fair in AFD paper)
-        compute_fair_count.apply(qdepth, QTARGET, fair_count);
+        compute_fair_count.apply(timer_trigger, qdepth, fair_count);
 
         // Compute the drop probability
-        QueueDepth_t ratio;
-        divide.apply(fair_count, flow_count, ratio);
-        keep_prob = (Prob_t) ratio;
-        random<Prob_t>(rand_val, 0, 255);
-        if (rand_val > keep_prob) {
-            standard_metadata.drop = 1;
+        if (timer_trigger == 0) {
+            QueueDepth_t ratio;
+            divide.apply(fair_count, flow_count, ratio);
+            keep_prob = (Prob_t) ratio;
+            random<Prob_t>(rand_val, 0, 255);
+            if (rand_val > keep_prob) {
+                standard_metadata.drop = 1;
+            }
         }
 
     }
