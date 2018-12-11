@@ -43,11 +43,11 @@ NS_LOG_COMPONENT_DEFINE ("AfdTest");
 
 // The times
 double global_start_time = 0.0;
-double global_stop_time = 3.0;
-double sink_start_time = global_start_time;
-double sink_stop_time = global_stop_time + 1.0;
-double client_start_time = sink_start_time + 0.2;
-double client_stop_time = global_stop_time - 1.0;
+double global_stop_time = 4.0;  // default (configurable by cmd line)
+double sink_start_time;
+double sink_stop_time; 
+double client_start_time;
+double client_stop_time;
 
 bool printStats = true;
 bool writeAppBytes = false;
@@ -57,12 +57,15 @@ NodeContainer sinks;
 NodeContainer routers;
 QueueDiscContainer queueDiscs;
 
+//std::vector<int> flowRates = {50, 100, 200, 400, 600}; // Kbps
+//std::vector<int> flowRates = {2, 10}; // Mbps
+std::vector<int> flowRates = {1, 6}; // Mbps
 std::string qdiscSelection = "";
 std::string pathOut = ".";
 std::string jsonFile = "";
 std::string commandsFile = "";
-uint32_t qSizeBits = 13;
-int numApps = 2;
+uint32_t qSizeBits = 31;
+int numApps = 50;
 std::string timeReference = "6ms";
 std::string bnLinkDataRate = "10Mbps";
 std::string bnLinkDelay = "20ms";
@@ -80,8 +83,13 @@ Ptr<OutputStreamWrapper> rxRateStream;
 std::vector<int> txBytes;
 std::vector<int> rxBytes;
 
-void InitStats ()
+void InitGlobals ()
 {
+  sink_start_time = global_start_time;
+  sink_stop_time = global_stop_time + 1.0;
+  client_start_time = sink_start_time + 0.2;
+  client_stop_time = global_stop_time - 1.0;
+
   for (int i = 0; i < numApps; i++)
     {
       txBytes.push_back (0);
@@ -92,17 +100,25 @@ void InitStats ()
   rxRateStream = asciiTraceHelper.CreateFileStream (pathOut + "/avg-rx-rates.plotme");
 }
 
-void WriteStats ()
+// convert bytes/sec to Kbps
+double
+BpsToKbps (double bytesps)
+{
+  return bytesps*8e-3;
+}
+
+void
+WriteStats ()
 {
   for (int i = 0; i < numApps; i++)
     {
       double duration = client_stop_time - client_start_time;
       // Write avg TX rates
       double avgTxRate = txBytes[i]/duration;
-      *txRateStream->GetStream () << i << " " << avgTxRate << std::endl;
+      *txRateStream->GetStream () << i << " " << BpsToKbps(avgTxRate) << std::endl;
       // Write avg RX rates
       double avgRxRate = rxBytes[i]/duration;
-      *rxRateStream->GetStream () << i << " " << avgRxRate << std::endl;
+      *rxRateStream->GetStream () << i << " " << BpsToKbps(avgRxRate) << std::endl;
     }
 
 }
@@ -266,9 +282,12 @@ SetupApps ()
   std::string dstAddrStr;
   ApplicationContainer app;
   uint16_t port = 9; // Discard port (RFC 863)
-  std::string sendRate = "10Mbps";
+  std::string sendRate;
   for (int i = 0; i < numApps; i++)
     {
+      // compute rate for this app
+//      sendRate = std::to_string(flowRates[i/10]) + "Kbps";
+      sendRate = std::to_string(flowRates[i/2]) + "Mbps";
       // Install Sources
       dstAddrStr = "10.2." + std::to_string (i+1) + ".1";
       dstAddr = Address (InetSocketAddress (Ipv4Address (dstAddrStr.c_str()), port));
@@ -343,9 +362,10 @@ main (int argc, char *argv[])
   cmd.AddValue ("commandsFile", "Path to the desired bmv2 CLI commands file", commandsFile);
   cmd.AddValue ("numApps", "Number of CBR sources/sinks to use", numApps);
   cmd.AddValue ("writeAppBytes", "Write the tx/rx bytes for each app", writeAppBytes);
+  cmd.AddValue ("duration", "Write the tx/rx bytes for each app", global_stop_time);
   cmd.Parse (argc, argv);
 
-  InitStats ();
+  InitGlobals ();
 
   SetupTopo ();
 

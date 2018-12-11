@@ -11,12 +11,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-typedef bit<32> uint_t;
 /*
- * The following bitwidth is a parameter that can be adjusted to make
- * the division operation more or less accurate.
+ * NOTE: MUST #define 2 parameters prior to importing this code: N, L
+ * N = uint bitwidth
+ * L = log_uint bitwidth
  */
-typedef bit<10> log_uint_t;
+
+typedef bit<N> div_uint_t;
+typedef bit<L> log_uint_t;
 
 /*
  * Here we will use lookup tables to approximate integer division.
@@ -27,9 +29,9 @@ typedef bit<10> log_uint_t;
  * See this paper for more details:
  *     https://homes.cs.washington.edu/~arvind/papers/flexswitch.pdf
  */
-control divide_pipe(in uint_t numerator,
-                    in uint_t denominator,
-                    out uint_t result) {
+control divide_pipe(in div_uint_t numerator,
+                    in div_uint_t denominator,
+                    out div_uint_t result) {
 
     log_uint_t log_num;
     log_uint_t log_denom;
@@ -42,7 +44,8 @@ control divide_pipe(in uint_t numerator,
     table log_numerator {
         key = { numerator: ternary; }
         actions = { set_log_num; }
-        size = 1024;
+        //size = (1<<(N-1))-1; // subtract 1 so size fits in an int w/ N=32
+        size = 1<<L;
         default_action = set_log_num(0);
     }
 
@@ -53,18 +56,19 @@ control divide_pipe(in uint_t numerator,
     table log_denominator {
         key = { denominator: ternary; }
         actions = { set_log_denom; }
-        size = 1024;
+        //size = (1<<(N-1))-1;  // subtract 1 so size fits in an int w/ N=32
+        size = 1<<L;
         default_action = set_log_denom(0);
     }
 
-    action set_result(uint_t val) {
+    action set_result(div_uint_t val) {
         result = val;
     }
 
     table exp {
         key = { log_result: exact; }
         actions = { set_result; }
-        size = 2048;
+        size = 1<<L;
         default_action = set_result(0);
     }
 
