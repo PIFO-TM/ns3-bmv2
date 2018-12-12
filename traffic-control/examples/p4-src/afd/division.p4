@@ -74,8 +74,12 @@ control divide_pipe(in div_uint_t numerator,
 
     apply {
         // numerator / denominator = exp(log(numerator) - log(denominator))
-        if (numerator == 0 || denominator == 0 || denominator > numerator) {
+        if (numerator == 0 || denominator > numerator) {
             result = 0;
+        }
+        else if (denominator == 0) {
+            result = 0;
+            result = ~result; // all 1's
         } else {
             log_numerator.apply();
             log_denominator.apply();

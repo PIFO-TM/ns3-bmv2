@@ -57,9 +57,9 @@ NodeContainer sinks;
 NodeContainer routers;
 QueueDiscContainer queueDiscs;
 
-//std::vector<int> flowRates = {50, 100, 200, 400, 600}; // Kbps
+std::vector<int> flowRates = {50, 100, 200, 400, 600}; // Kbps
 //std::vector<int> flowRates = {2, 10}; // Mbps
-std::vector<int> flowRates = {1, 6}; // Mbps
+//std::vector<int> flowRates = {1, 6}; // Mbps
 std::string qdiscSelection = "";
 std::string pathOut = ".";
 std::string jsonFile = "";
@@ -286,8 +286,8 @@ SetupApps ()
   for (int i = 0; i < numApps; i++)
     {
       // compute rate for this app
-//      sendRate = std::to_string(flowRates[i/10]) + "Kbps";
-      sendRate = std::to_string(flowRates[i/2]) + "Mbps";
+      sendRate = std::to_string(flowRates[i/10]) + "Kbps";
+//      sendRate = std::to_string(flowRates[i/2]) + "Mbps";
       // Install Sources
       dstAddrStr = "10.2." + std::to_string (i+1) + ".1";
       dstAddr = Address (InetSocketAddress (Ipv4Address (dstAddrStr.c_str()), port));

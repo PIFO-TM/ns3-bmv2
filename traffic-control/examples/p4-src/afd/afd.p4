@@ -39,14 +39,14 @@ typedef bit<8> Prob_t;
 // beta = 1.8 in paper
 // BETA = log2(1.8/600000 * (2**31 - 1))
 // BETA = log2(1.8)
-#define BETA  1
+#define BETA  2
 typedef bit<L2_SHADOW_ENTRIES> ShadowIdx_t;
 // QTARGET : the target queue size
-const QueueDepth_t QTARGET = 143165576*2; // equivalent to 80KB for N=31, max_qsize=600KB
+//const QueueDepth_t QTARGET = 143165576*2; // equivalent to 80KB for N=31, max_qsize=600KB
 //const QueueDepth_t QTARGET = 143165576; // equivalent to 40KB for N=31, max_qsize=600KB
 //const QueueDepth_t QTARGET = 71582788; // equivalent to 20KB for N=31, max_qsize=600KB
 //const QueueDepth_t QTARGET = 35791394; // equivalent to 10KB for N=31, max_qsize=600KB
-//const QueueDepth_t QTARGET = 8947848; // equivalent to 2.5KB for N=31, max_qsize=600KB
+const QueueDepth_t QTARGET = 8947848; // equivalent to 2.5KB for N=31, max_qsize=600KB
 // SAMPLE_RATE : integer between 0 and 255.
 // Dictates how often to include packet into shadow_buffer.
 // See Guidelines 2 & 3 in the AFD paper
