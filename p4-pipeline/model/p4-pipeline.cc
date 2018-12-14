@@ -95,9 +95,24 @@ SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile)
   add_required_field("standard_metadata", "pkt_len_bytes");
   add_required_field("standard_metadata", "l3_proto");
   add_required_field("standard_metadata", "flow_hash");
+  add_required_field("standard_metadata", "enq_trigger");
   add_required_field("standard_metadata", "timer_trigger");
+  // dequeue trigger metadata
+  add_required_field("standard_metadata", "deq_trigger");
+  add_required_field("standard_metadata", "enq_timestamp");
+  add_required_field("standard_metadata", "deq_qdepth");
+  add_required_field("standard_metadata", "deq_qdepth_bytes");
+  add_required_field("standard_metadata", "deq_avg_qdepth");
+  add_required_field("standard_metadata", "deq_avg_qdepth_bytes");
+  add_required_field("standard_metadata", "deq_timestamp");
+  add_required_field("standard_metadata", "deq_pkt_len");
+  add_required_field("standard_metadata", "deq_pkt_len_bytes");
+  add_required_field("standard_metadata", "deq_l3_proto");
+  add_required_field("standard_metadata", "deq_flow_hash");
+  // P4 program outputs
   add_required_field("standard_metadata", "drop");
   add_required_field("standard_metadata", "mark");
+  // P4 program tracedata
   add_required_field("standard_metadata", "trace_var1");
   add_required_field("standard_metadata", "trace_var2");
   add_required_field("standard_metadata", "trace_var3");
@@ -185,7 +200,20 @@ SimpleP4Pipe::process_pipeline(Ptr<Packet> ns3_packet, std_meta_t &std_meta) {
   phv->get_field("standard_metadata.pkt_len_bytes").set(std_meta.pkt_len_bytes);
   phv->get_field("standard_metadata.l3_proto").set(std_meta.l3_proto);
   phv->get_field("standard_metadata.flow_hash").set(std_meta.flow_hash);
+  phv->get_field("standard_metadata.enq_trigger").set(std_meta.enq_trigger);
   phv->get_field("standard_metadata.timer_trigger").set(std_meta.timer_trigger);
+  // dequeue trigger metadata
+  phv->get_field("standard_metadata.deq_trigger").set(std_meta.timer_trigger);
+  phv->get_field("standard_metadata.enq_timestamp").set(std_meta.enq_timestamp);
+  phv->get_field("standard_metadata.deq_qdepth").set(std_meta.deq_qdepth);
+  phv->get_field("standard_metadata.deq_qdepth_bytes").set(std_meta.deq_qdepth_bytes);
+  phv->get_field("standard_metadata.deq_avg_qdepth").set(std_meta.deq_avg_qdepth);
+  phv->get_field("standard_metadata.deq_avg_qdepth_bytes").set(std_meta.deq_avg_qdepth_bytes);
+  phv->get_field("standard_metadata.deq_timestamp").set(std_meta.deq_timestamp);
+  phv->get_field("standard_metadata.deq_pkt_len").set(std_meta.deq_pkt_len);
+  phv->get_field("standard_metadata.deq_pkt_len_bytes").set(std_meta.deq_pkt_len_bytes);
+  phv->get_field("standard_metadata.deq_l3_proto").set(std_meta.deq_l3_proto);
+  phv->get_field("standard_metadata.deq_flow_hash").set(std_meta.deq_flow_hash);
 
   phv->get_field("standard_metadata.trace_var1").set(std_meta.trace_var1);
   phv->get_field("standard_metadata.trace_var2").set(std_meta.trace_var2);

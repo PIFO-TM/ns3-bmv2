@@ -91,6 +91,11 @@ TypeId P4QueueDisc::GetTypeId (void)
                    TimeValue (MilliSeconds (0)), // default disabled
                    MakeTimeAccessor (&P4QueueDisc::m_timeReference),
                    MakeTimeChecker ())
+    .AddAttribute ( "EnableDequeueEvents",
+                    "Enable dequeue event triggers in P4 pipeline",
+                    BooleanValue (false), // default disabled
+                    MakeBooleanAccessor (&P4QueueDisc::m_enDeqEvents),
+                    MakeBooleanChecker ())
     .AddTraceSource ("AvgQueueSize",
                      "The computed EWMA of the queue size",
                      MakeTraceSourceAccessor (&P4QueueDisc::m_qAvg),
@@ -213,7 +218,7 @@ P4QueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
   std_meta.flow_hash = item->Hash (); //TODO(sibanez): include perturbation?
   std_meta.enq_trigger = true;
   std_meta.timer_trigger = false;
-  // dequeue trigger data
+  // dequeue trigger metadata
   std_meta.deq_trigger = false;
   std_meta.enq_timestamp = Simulator::Now ().GetNanoSeconds ();
   std_meta.deq_qdepth = 0;
@@ -297,7 +302,7 @@ P4QueueDisc::RunTimerEvent ()
   std_meta.flow_hash = 0;
   std_meta.enq_trigger = false;
   std_meta.timer_trigger = true;
-  // dequeue trigger data
+  // dequeue trigger metadata
   std_meta.deq_trigger = false;
   std_meta.enq_timestamp = Simulator::Now ().GetNanoSeconds ();
   std_meta.deq_qdepth = 0;
@@ -468,12 +473,12 @@ P4QueueDisc::DoDequeue (void)
           std_meta.flow_hash = 0;
           std_meta.enq_trigger = false;
           std_meta.timer_trigger = false;
-          // dequeue trigger data
+          // dequeue trigger metadata
           std_meta.deq_trigger = true;
           std_meta.enq_timestamp = item->GetTimeStamp().GetNanoSeconds();
           std_meta.deq_qdepth = MapSize ((double) nQueued);
           std_meta.deq_qdepth_bytes = GetNBytes ();
-          std_meta.deq_avg_qdepth = MapSize (m_qAvg);
+          std_meta.deq_avg_qdepth = MapSize (m_qAvg); //TODO(sibanez): does m_qAvg need to be updated on dequeue too?
           std_meta.deq_avg_qdepth_bytes = (uint32_t) std::round (m_qAvg);
           std_meta.deq_timestamp = Simulator::Now ().GetNanoSeconds ();
           std_meta.deq_pkt_len = MapSize ((double) item->GetSize ());
@@ -490,16 +495,13 @@ P4QueueDisc::DoDequeue (void)
           std_meta.trace_var4 = m_p4Var4;
         
           // perform P4 processing
-          m_p4Pipe->process_pipeline(item->GetPacket(), std_meta);
+          m_p4Pipe->process_pipeline(default_packet, std_meta);
         
           // update trace variables
           m_p4Var1 = std_meta.trace_var1;
           m_p4Var2 = std_meta.trace_var2;
           m_p4Var3 = std_meta.trace_var3;
           m_p4Var4 = std_meta.trace_var4;
-        
-          // replace the QueueDiscItem's packet
-          item->SetPacket(new_packet);
         }
 
 

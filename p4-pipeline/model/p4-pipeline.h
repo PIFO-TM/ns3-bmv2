@@ -38,21 +38,36 @@ namespace ns3 {
  * \brief The standard metadata for the P4 pipeline
  */
 typedef struct {
-  uint32_t qdepth;              // input
-  uint32_t qdepth_bytes;        // input
-  uint32_t avg_qdepth;          // input
-  uint32_t avg_qdepth_bytes;    // input
-  int64_t timestamp;            // input
-  int64_t idle_time;            // input
-  int64_t qlatency;             // input
-  uint32_t avg_deq_rate_bytes;  // input
-  uint32_t pkt_len;             // input
-  uint32_t pkt_len_bytes;       // input
-  uint16_t l3_proto;            // input
-  uint32_t flow_hash;           // input
-  bool timer_trigger;           // input
+  uint32_t qdepth;                // input
+  uint32_t qdepth_bytes;          // input
+  uint32_t avg_qdepth;            // input
+  uint32_t avg_qdepth_bytes;      // input
+  int64_t timestamp;              // input
+  int64_t idle_time;              // input
+  int64_t qlatency;               // input
+  uint32_t avg_deq_rate_bytes;    // input
+  uint32_t pkt_len;               // input
+  uint32_t pkt_len_bytes;         // input
+  uint16_t l3_proto;              // input
+  uint32_t flow_hash;             // input
+  bool enq_trigger;               // input
+  bool timer_trigger;             // input
+  // dequeue trigger metadata
+  bool deq_trigger;               // input
+  int64_t enq_timestamp;          // input
+  uint32_t deq_qdepth;            // input
+  uint32_t deq_qdepth_bytes;      // input
+  uint32_t deq_avg_qdepth;        // input
+  uint32_t deq_avg_qdepth_bytes;  // input
+  int64_t  deq_timestamp;         // input
+  uint32_t deq_pkt_len;           // input
+  uint32_t deq_pkt_len_bytes;     // input
+  uint16_t deq_l3_proto;          // input
+  uint32_t deq_flow_hash;         // input
+  // P4 program outputs
   bool drop;                    // output
   bool mark;                    // output
+  // P4 program tracedata
   uint32_t trace_var1;          // input/output
   uint32_t trace_var2;          // input/output
   uint32_t trace_var3;          // input/output
