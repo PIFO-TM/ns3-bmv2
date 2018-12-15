@@ -91,6 +91,16 @@ TypeId P4QueueDisc::GetTypeId (void)
                    TimeValue (MilliSeconds (0)), // default disabled
                    MakeTimeAccessor (&P4QueueDisc::m_timeReference),
                    MakeTimeChecker ())
+    .AddAttribute ( "EnableDropEvents",
+                    "Enable drop event triggers in P4 pipeline",
+                    BooleanValue (false), // default disabled
+                    MakeBooleanAccessor (&P4QueueDisc::m_enDropEvents),
+                    MakeBooleanChecker ())
+    .AddAttribute ( "EnableEnqueueEvents",
+                    "Enable enqueue event triggers in P4 pipeline",
+                    BooleanValue (false), // default disabled
+                    MakeBooleanAccessor (&P4QueueDisc::m_enEnqEvents),
+                    MakeBooleanChecker ())
     .AddAttribute ( "EnableDequeueEvents",
                     "Enable dequeue event triggers in P4 pipeline",
                     BooleanValue (false), // default disabled
@@ -170,6 +180,70 @@ P4QueueDisc::SetCommandsFile (std::string commandsFile)
   m_commandsFile = commandsFile;
 }
 
+void
+P4QueueDisc::InitStdMeta (std_meta_t &std_meta)
+{
+  //
+  // Initialize standard metadata
+  //
+  std_meta.qdepth = 0;
+  std_meta.qdepth_bytes = 0;
+  std_meta.avg_qdepth = 0;
+  std_meta.avg_qdepth_bytes = 0;
+  std_meta.timestamp = 0;
+  std_meta.idle_time = 0;
+  std_meta.qlatency = 0;
+  std_meta.avg_deq_rate_bytes = 0;
+  std_meta.pkt_len = 0;
+  std_meta.pkt_len_bytes = 0;
+  std_meta.l3_proto = 0;
+  std_meta.flow_hash = 0;
+  std_meta.ingress_trigger = false;
+  std_meta.timer_trigger = false;
+  // drop trigger metadata
+  std_meta.drop_trigger = false;
+  std_meta.drop_timestamp = 0;
+  std_meta.drop_qdepth = 0;
+  std_meta.drop_qdepth_bytes = 0;
+  std_meta.drop_avg_qdepth = 0;
+  std_meta.drop_avg_qdepth_bytes = 0;
+  std_meta.drop_pkt_len = 0;
+  std_meta.drop_pkt_len_bytes = 0;
+  std_meta.drop_l3_proto = 0;
+  std_meta.drop_flow_hash = 0;
+  // enqueue trigger metadata
+  std_meta.enq_trigger = false;
+  std_meta.enq_timestamp = 0;
+  std_meta.enq_qdepth = 0;
+  std_meta.enq_qdepth_bytes = 0;
+  std_meta.enq_avg_qdepth = 0;
+  std_meta.enq_avg_qdepth_bytes = 0;
+  std_meta.enq_pkt_len = 0;
+  std_meta.enq_pkt_len_bytes = 0;
+  std_meta.enq_l3_proto = 0;
+  std_meta.enq_flow_hash = 0;
+  // dequeue trigger metadata
+  std_meta.deq_trigger = false;
+  std_meta.deq_enq_timestamp = 0;
+  std_meta.deq_qdepth = 0;
+  std_meta.deq_qdepth_bytes = 0;
+  std_meta.deq_avg_qdepth = 0;
+  std_meta.deq_avg_qdepth_bytes = 0;
+  std_meta.deq_timestamp = 0;
+  std_meta.deq_pkt_len = 0;
+  std_meta.deq_pkt_len_bytes = 0;
+  std_meta.deq_l3_proto = 0;
+  std_meta.deq_flow_hash = 0;
+  // P4 program outputs
+  std_meta.drop = false; 
+  std_meta.mark = false;
+  // P4 program trace data
+  std_meta.trace_var1 = m_p4Var1;
+  std_meta.trace_var2 = m_p4Var2;
+  std_meta.trace_var3 = m_p4Var3;
+  std_meta.trace_var4 = m_p4Var4;
+}
+
 bool
 P4QueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
 {
@@ -204,6 +278,7 @@ P4QueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
   // Initialize standard metadata
   //
   std_meta_t std_meta;
+  InitStdMeta (std_meta);
   std_meta.qdepth = MapSize ((double) nQueued);
   std_meta.qdepth_bytes = GetNBytes ();
   std_meta.avg_qdepth = MapSize (m_qAvg);
@@ -216,28 +291,7 @@ P4QueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
   std_meta.pkt_len_bytes = item->GetSize ();
   std_meta.l3_proto = item->GetProtocol ();
   std_meta.flow_hash = item->Hash (); //TODO(sibanez): include perturbation?
-  std_meta.enq_trigger = true;
-  std_meta.timer_trigger = false;
-  // dequeue trigger metadata
-  std_meta.deq_trigger = false;
-  std_meta.enq_timestamp = Simulator::Now ().GetNanoSeconds ();
-  std_meta.deq_qdepth = 0;
-  std_meta.deq_qdepth_bytes = 0;
-  std_meta.deq_avg_qdepth = 0;
-  std_meta.deq_avg_qdepth_bytes = 0;
-  std_meta.deq_timestamp = 0;
-  std_meta.deq_pkt_len = 0;
-  std_meta.deq_pkt_len_bytes = 0;
-  std_meta.deq_l3_proto = 0;
-  std_meta.deq_flow_hash = 0;
-  // P4 program outputs
-  std_meta.drop = false; 
-  std_meta.mark = false;
-  // P4 program trace data
-  std_meta.trace_var1 = m_p4Var1;
-  std_meta.trace_var2 = m_p4Var2;
-  std_meta.trace_var3 = m_p4Var3;
-  std_meta.trace_var4 = m_p4Var4;
+  std_meta.ingress_trigger = true;
 
   // perform P4 processing
   Ptr<Packet> new_packet = m_p4Pipe->process_pipeline(item->GetPacket(), std_meta);
@@ -288,6 +342,7 @@ P4QueueDisc::RunTimerEvent ()
   // Initialize standard metadata
   //
   std_meta_t std_meta;
+  InitStdMeta (std_meta);
   std_meta.qdepth = MapSize ((double) nQueued);
   std_meta.qdepth_bytes = GetNBytes ();
   std_meta.avg_qdepth = MapSize (m_qAvg);
@@ -300,28 +355,7 @@ P4QueueDisc::RunTimerEvent ()
   std_meta.pkt_len_bytes = 0;
   std_meta.l3_proto = 0;
   std_meta.flow_hash = 0;
-  std_meta.enq_trigger = false;
   std_meta.timer_trigger = true;
-  // dequeue trigger metadata
-  std_meta.deq_trigger = false;
-  std_meta.enq_timestamp = Simulator::Now ().GetNanoSeconds ();
-  std_meta.deq_qdepth = 0;
-  std_meta.deq_qdepth_bytes = 0;
-  std_meta.deq_avg_qdepth = 0;
-  std_meta.deq_avg_qdepth_bytes = 0;
-  std_meta.deq_timestamp = 0;
-  std_meta.deq_pkt_len = 0;
-  std_meta.deq_pkt_len_bytes = 0;
-  std_meta.deq_l3_proto = 0;
-  std_meta.deq_flow_hash = 0;
-  // P4 program outputs
-  std_meta.drop = false; 
-  std_meta.mark = false;
-  // P4 trace data
-  std_meta.trace_var1 = m_p4Var1;
-  std_meta.trace_var2 = m_p4Var2;
-  std_meta.trace_var3 = m_p4Var3;
-  std_meta.trace_var4 = m_p4Var4;
 
   // perform P4 processing
   m_p4Pipe->process_pipeline(default_packet, std_meta);
@@ -334,6 +368,100 @@ P4QueueDisc::RunTimerEvent ()
 
   // Reschedule timer event
   m_timerEvent = Simulator::Schedule (m_timeReference, &P4QueueDisc::RunTimerEvent, this);
+}
+
+void
+P4QueueDisc::RunDropEvent (Ptr<const QueueDiscItem> item)
+{
+  uint32_t nQueued = GetCurrentSize ().GetValue ();
+  //
+  // Initialize standard metadata
+  //
+  std_meta_t std_meta;
+  InitStdMeta (std_meta);
+  // drop trigger metadata
+  std_meta.drop_trigger = true;
+  std_meta.drop_timestamp = Simulator::Now ().GetNanoSeconds ();
+  std_meta.drop_qdepth = MapSize ((double) nQueued);
+  std_meta.drop_qdepth_bytes = GetNBytes ();
+  std_meta.drop_avg_qdepth = MapSize (m_qAvg);
+  std_meta.drop_avg_qdepth_bytes = (uint32_t) std::round (m_qAvg);
+  std_meta.drop_pkt_len = MapSize ((double) item->GetSize ());
+  std_meta.drop_pkt_len_bytes = item->GetSize ();
+  std_meta.drop_l3_proto = item->GetProtocol ();
+  std_meta.drop_flow_hash = item->Hash (); //TODO(sibanez): include perturbation?
+  
+  // perform P4 processing
+  m_p4Pipe->process_pipeline(default_packet, std_meta);
+  
+  // update trace variables
+  m_p4Var1 = std_meta.trace_var1;
+  m_p4Var2 = std_meta.trace_var2;
+  m_p4Var3 = std_meta.trace_var3;
+  m_p4Var4 = std_meta.trace_var4;
+}
+
+void
+P4QueueDisc::RunEnqEvent (Ptr<const QueueDiscItem> item)
+{
+  uint32_t nQueued = GetCurrentSize ().GetValue ();
+  //
+  // Initialize standard metadata
+  //
+  std_meta_t std_meta;
+  InitStdMeta (std_meta);
+  // enqueue trigger metadata
+  std_meta.enq_trigger = true;
+  std_meta.enq_timestamp = Simulator::Now ().GetNanoSeconds ();
+  std_meta.enq_qdepth = MapSize ((double) nQueued);
+  std_meta.enq_qdepth_bytes = GetNBytes ();
+  std_meta.enq_avg_qdepth = MapSize (m_qAvg);
+  std_meta.enq_avg_qdepth_bytes = (uint32_t) std::round (m_qAvg);
+  std_meta.enq_pkt_len = MapSize ((double) item->GetSize ());
+  std_meta.enq_pkt_len_bytes = item->GetSize ();
+  std_meta.enq_l3_proto = item->GetProtocol ();
+  std_meta.enq_flow_hash = item->Hash (); //TODO(sibanez): include perturbation?
+  
+  // perform P4 processing
+  m_p4Pipe->process_pipeline(default_packet, std_meta);
+  
+  // update trace variables
+  m_p4Var1 = std_meta.trace_var1;
+  m_p4Var2 = std_meta.trace_var2;
+  m_p4Var3 = std_meta.trace_var3;
+  m_p4Var4 = std_meta.trace_var4;
+}
+
+void
+P4QueueDisc::RunDeqEvent (Ptr<const QueueDiscItem> item)
+{
+  uint32_t nQueued = GetCurrentSize ().GetValue ();
+  //
+  // Initialize standard metadata
+  //
+  std_meta_t std_meta;
+  InitStdMeta (std_meta);
+  // dequeue trigger metadata
+  std_meta.deq_trigger = true;
+  std_meta.deq_enq_timestamp = item->GetTimeStamp().GetNanoSeconds();
+  std_meta.deq_qdepth = MapSize ((double) nQueued);
+  std_meta.deq_qdepth_bytes = GetNBytes ();
+  std_meta.deq_avg_qdepth = MapSize (m_qAvg); //TODO(sibanez): does m_qAvg need to be updated on dequeue too?
+  std_meta.deq_avg_qdepth_bytes = (uint32_t) std::round (m_qAvg);
+  std_meta.deq_timestamp = Simulator::Now ().GetNanoSeconds ();
+  std_meta.deq_pkt_len = MapSize ((double) item->GetSize ());
+  std_meta.deq_pkt_len_bytes = item->GetSize ();
+  std_meta.deq_l3_proto = item->GetProtocol ();
+  std_meta.deq_flow_hash = item->Hash (); //TODO(sibanez): include perturbation?
+  
+  // perform P4 processing
+  m_p4Pipe->process_pipeline(default_packet, std_meta);
+  
+  // update trace variables
+  m_p4Var1 = std_meta.trace_var1;
+  m_p4Var2 = std_meta.trace_var2;
+  m_p4Var3 = std_meta.trace_var3;
+  m_p4Var4 = std_meta.trace_var4;
 }
 
 uint32_t
@@ -451,59 +579,7 @@ P4QueueDisc::DoDequeue (void)
       NS_LOG_LOGIC ("Popped from qdisc: " << item);
       NS_LOG_LOGIC ("Number packets in qdisc: " << GetQueueDiscClass (0)->GetQueueDisc ()->GetNPackets ());
 
-      // invoke P4 pipeline if dequeue events are enabled
-      if (m_enDeqEvents)
-        {
-          uint32_t nQueued = GetCurrentSize ().GetValue ();
-          //
-          // Initialize standard metadata
-          //
-          std_meta_t std_meta;
-          std_meta.qdepth = 0;
-          std_meta.qdepth_bytes = 0;
-          std_meta.avg_qdepth = 0;
-          std_meta.avg_qdepth_bytes = 0;
-          std_meta.timestamp = 0;
-          std_meta.idle_time = 0;
-          std_meta.qlatency = 0;
-          std_meta.avg_deq_rate_bytes = 0;
-          std_meta.pkt_len = 0;
-          std_meta.pkt_len_bytes = 0;
-          std_meta.l3_proto = 0;
-          std_meta.flow_hash = 0;
-          std_meta.enq_trigger = false;
-          std_meta.timer_trigger = false;
-          // dequeue trigger metadata
-          std_meta.deq_trigger = true;
-          std_meta.enq_timestamp = item->GetTimeStamp().GetNanoSeconds();
-          std_meta.deq_qdepth = MapSize ((double) nQueued);
-          std_meta.deq_qdepth_bytes = GetNBytes ();
-          std_meta.deq_avg_qdepth = MapSize (m_qAvg); //TODO(sibanez): does m_qAvg need to be updated on dequeue too?
-          std_meta.deq_avg_qdepth_bytes = (uint32_t) std::round (m_qAvg);
-          std_meta.deq_timestamp = Simulator::Now ().GetNanoSeconds ();
-          std_meta.deq_pkt_len = MapSize ((double) item->GetSize ());
-          std_meta.deq_pkt_len_bytes = item->GetSize ();
-          std_meta.deq_l3_proto = item->GetProtocol ();
-          std_meta.deq_flow_hash = item->Hash (); //TODO(sibanez): include perturbation?
-          // P4 program outputs
-          std_meta.drop = false; 
-          std_meta.mark = false;
-          // P4 program trace data
-          std_meta.trace_var1 = m_p4Var1;
-          std_meta.trace_var2 = m_p4Var2;
-          std_meta.trace_var3 = m_p4Var3;
-          std_meta.trace_var4 = m_p4Var4;
-        
-          // perform P4 processing
-          m_p4Pipe->process_pipeline(default_packet, std_meta);
-        
-          // update trace variables
-          m_p4Var1 = std_meta.trace_var1;
-          m_p4Var2 = std_meta.trace_var2;
-          m_p4Var3 = std_meta.trace_var3;
-          m_p4Var4 = std_meta.trace_var4;
-        }
-
+      // NOTE: no need to call RunDeqEvent because CheckConfig connects it as a trace sink
 
       // update queue latency measurement
       m_qLatency = Simulator::Now().GetNanoSeconds() - item->GetTimeStamp().GetNanoSeconds();
@@ -638,6 +714,24 @@ P4QueueDisc::CheckConfig (void)
     {
       NS_LOG_DEBUG ("Scheduling initial timer event using m_timeReference = " << m_timeReference.GetNanoSeconds() << " ns");
       m_timerEvent = Simulator::Schedule (m_timeReference, &P4QueueDisc::RunTimerEvent, this);
+    }
+
+  // Check if drop events are enabled
+  if (m_enDropEvents)
+    {
+      TraceConnectWithoutContext ("DropBeforeEnqueue", MakeCallback (&P4QueueDisc::RunDropEvent, this));
+    }
+
+  // Check if enqueue events are enabled
+  if (m_enEnqEvents)
+    {
+      TraceConnectWithoutContext ("Enqueue", MakeCallback (&P4QueueDisc::RunEnqEvent, this));
+    }
+
+  // Check if dequeue events are enabled
+  if (m_enDeqEvents)
+    {
+      TraceConnectWithoutContext ("Dequeue", MakeCallback (&P4QueueDisc::RunDeqEvent, this));
     }
 
   return true;

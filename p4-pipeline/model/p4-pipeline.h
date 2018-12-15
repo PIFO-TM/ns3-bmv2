@@ -38,35 +38,57 @@ namespace ns3 {
  * \brief The standard metadata for the P4 pipeline
  */
 typedef struct {
-  uint32_t qdepth;                // input
-  uint32_t qdepth_bytes;          // input
-  uint32_t avg_qdepth;            // input
-  uint32_t avg_qdepth_bytes;      // input
-  int64_t timestamp;              // input
-  int64_t idle_time;              // input
-  int64_t qlatency;               // input
-  uint32_t avg_deq_rate_bytes;    // input
-  uint32_t pkt_len;               // input
-  uint32_t pkt_len_bytes;         // input
-  uint16_t l3_proto;              // input
-  uint32_t flow_hash;             // input
-  bool enq_trigger;               // input
-  bool timer_trigger;             // input
+  uint32_t qdepth;
+  uint32_t qdepth_bytes;
+  uint32_t avg_qdepth;
+  uint32_t avg_qdepth_bytes;
+  int64_t timestamp; 
+  int64_t idle_time; 
+  int64_t qlatency; 
+  uint32_t avg_deq_rate_bytes;
+  uint32_t pkt_len;
+  uint32_t pkt_len_bytes;
+  uint16_t l3_proto;
+  uint32_t flow_hash;
+  bool ingress_trigger;
+  bool timer_trigger;
+  // drop trigger metadata
+  bool     drop_trigger;
+  int64_t  drop_timestamp;
+  uint32_t drop_qdepth;
+  uint32_t drop_qdepth_bytes;
+  uint32_t drop_avg_qdepth;
+  uint32_t drop_avg_qdepth_bytes;
+  uint32_t drop_pkt_len;
+  uint32_t drop_pkt_len_bytes;
+  uint16_t drop_l3_proto;
+  uint32_t drop_flow_hash;
+  // enqueue trigger metadata
+  bool     enq_trigger;
+  int64_t  enq_timestamp;
+  uint32_t enq_qdepth;
+  uint32_t enq_qdepth_bytes;
+  uint32_t enq_avg_qdepth;
+  uint32_t enq_avg_qdepth_bytes;
+  uint32_t enq_pkt_len;
+  uint32_t enq_pkt_len_bytes;
+  uint16_t enq_l3_proto;
+  uint32_t enq_flow_hash;
   // dequeue trigger metadata
-  bool deq_trigger;               // input
-  int64_t enq_timestamp;          // input
-  uint32_t deq_qdepth;            // input
-  uint32_t deq_qdepth_bytes;      // input
-  uint32_t deq_avg_qdepth;        // input
-  uint32_t deq_avg_qdepth_bytes;  // input
-  int64_t  deq_timestamp;         // input
-  uint32_t deq_pkt_len;           // input
-  uint32_t deq_pkt_len_bytes;     // input
-  uint16_t deq_l3_proto;          // input
-  uint32_t deq_flow_hash;         // input
+  bool     deq_trigger;
+  int64_t  deq_enq_timestamp;
+  uint32_t deq_qdepth;
+  uint32_t deq_qdepth_bytes;
+  uint32_t deq_avg_qdepth;
+  uint32_t deq_avg_qdepth_bytes;
+  int64_t  deq_timestamp;
+  uint32_t deq_pkt_len;
+  uint32_t deq_pkt_len_bytes;
+  uint16_t deq_l3_proto;
+  uint32_t deq_flow_hash;
   // P4 program outputs
-  bool drop;                    // output
-  bool mark;                    // output
+  bool drop;
+  bool mark;
   // P4 program tracedata
   uint32_t trace_var1;          // input/output
   uint32_t trace_var2;          // input/output

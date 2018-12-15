@@ -75,9 +75,29 @@ private:
   virtual bool CheckConfig (void);
 
   /**
+   * \brief Initialize \param std_meta with default values
+   */
+  void InitStdMeta (std_meta_t &std_meta);
+
+  /**
    * \brief The function to execute when a timer event is triggered
    */
   void RunTimerEvent (void);
+
+  /**
+   * \brief The function to execute when a drop before enqueue event occurs
+   */
+  void RunDropEvent (Ptr<const QueueDiscItem> item);
+
+  /**
+   * \brief The function to execute when an enqueue event occurs
+   */
+  void RunEnqEvent (Ptr<const QueueDiscItem> item);
+
+  /**
+   * \brief The function to execute when a dequeue event occurs
+   */
+  void RunDeqEvent (Ptr<const QueueDiscItem> item);
 
   /**
    * \brief Map a double in the range [0, GetMaxSize()] to an integer
@@ -117,6 +137,8 @@ private:
   double m_qW;                 //!< Queue weight given to cur queue size sample
   uint32_t m_dqThreshold;      //!< Minimum queue size in bytes before dequeue rate is measured
   Time m_timeReference;        //!< Desired time between timer event triggers
+  bool m_enDropEvents;         //!< Enable drop event triggers in P4 pipeline
+  bool m_enEnqEvents;          //!< Enable enqueue event triggers in P4 pipeline
   bool m_enDeqEvents;          //!< Enable dequeue event triggers in P4 pipeline
 
   // ** Variables maintained by the queue disc

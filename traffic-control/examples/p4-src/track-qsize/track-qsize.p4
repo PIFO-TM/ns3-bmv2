@@ -9,10 +9,6 @@
 
 typedef bit<32> QueueDepth_t;
 
-// increase NUM_FLOW_ENTRIES to reduce hash collisions
-#define NUM_FLOW_ENTRIES   4096
-#define L2_FLOW_ENTRIES    12
-
 const QueueDepth_t QTHRESH = 15000; // 15KB
 
 /*************************************************************************
@@ -56,10 +52,24 @@ control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
 *************************************************************************/
 
 control compute_qsize_pipe(in bit<1> enq_trigger,
-                           in QueueDepth_t pkt_len_bytes,
+                           in QueueDepth_t enq_pkt_len_bytes,
                            in bit<1> deq_trigger,
                            in QueueDepth_t deq_pkt_len_bytes,
                            out QueueDepth_t qsize) {
+
+    // only used for debugging purposes
+    table qsize_debug {
+        key = {
+            enq_trigger : exact;
+            enq_pkt_len_bytes : exact;
+            deq_trigger : exact;
+            deq_pkt_len_bytes : exact;
+            qsize : exact;
+        }
+        actions = { NoAction; }
+        size = 1;
+        default_action = NoAction;
+    }
 
     register<QueueDepth_t>(1) qsize_reg;
 
@@ -67,7 +77,7 @@ control compute_qsize_pipe(in bit<1> enq_trigger,
         @atomic {
             qsize_reg.read(qsize, 0);
             if (enq_trigger==1 && deq_trigger==0) {
-                qsize = qsize |+| pkt_len_bytes;
+                qsize = qsize |+| enq_pkt_len_bytes;
             }
             else if (enq_trigger==0 && deq_trigger==1) {
                 qsize = qsize |-| deq_pkt_len_bytes;
@@ -75,10 +85,11 @@ control compute_qsize_pipe(in bit<1> enq_trigger,
             else if (enq_trigger==1 && deq_trigger==1) {
                 // NOTE: this case will never be executed because of the
                 // way dequeue events are implemented in ns3-bmv2
-                qsize = qsize |+| pkt_len_bytes |-| deq_pkt_len_bytes;
+                qsize = qsize |+| enq_pkt_len_bytes |-| deq_pkt_len_bytes;
             }
             qsize_reg.write(0, qsize);
         }
+        qsize_debug.apply();
     }
 }
 
@@ -91,10 +102,11 @@ control MyIngress(inout headers hdr,
     
     apply {
         compute_qsize.apply(standard_metadata.enq_trigger,
-                            standard_metadata.pkt_len_bytes,
+                            standard_metadata.enq_pkt_len_bytes,
                             standard_metadata.deq_trigger,
                             standard_metadata.deq_pkt_len_bytes,
                             qsize);
+        standard_metadata.trace_var1 = qsize;
         if (qsize > QTHRESH) {
             standard_metadata.drop = 1;
         }
