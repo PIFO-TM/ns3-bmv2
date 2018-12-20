@@ -81,11 +81,13 @@ control detect_microbust_pipe(in bit<1> ingress_trigger,
             ingress_trigger : exact;
             ingress_flowID : exact;
             enq_trigger : exact;
-            enq_pkt_len_bytes : exact;
             enq_flowID : exact;
+            enq_pkt_len_bytes : exact;
+            enq_count : exact;
             deq_trigger : exact;
-            deq_pkt_len_bytes : exact;
             deq_flowID : exact;
+            deq_pkt_len_bytes : exact;
+            deq_count : exact;
             num_culprits : exact;
             flow_count : exact;
         }
@@ -226,11 +228,13 @@ control MyIngress(inout headers hdr,
 
     QueueDepth_t flow_count;
     Uint_t num_culprits;
+    FlowID_t flowID;
     detect_microbust_pipe() detect_microburst;
     
     apply {
+        flowID = standard_metadata.flow_hash[L2_NUM_FLOW_ENTRIES-1:0];
         detect_microburst.apply(standard_metadata.ingress_trigger,
-                                standard_metadata.flow_hash[L2_NUM_FLOW_ENTRIES-1:0],
+                                flowID,
                                 standard_metadata.enq_trigger,
                                 standard_metadata.enq_pkt_len_bytes,
                                 standard_metadata.enq_flow_hash[L2_NUM_FLOW_ENTRIES-1:0],
@@ -240,7 +244,8 @@ control MyIngress(inout headers hdr,
                                 num_culprits,
                                 flow_count);
         standard_metadata.trace_var1 = num_culprits;
-        standard_metadata.trace_var2 = flow_count;
+        standard_metadata.trace_var2 = (bit<32>)flowID;
+        standard_metadata.trace_var3 = flow_count;
     }
 }
 
