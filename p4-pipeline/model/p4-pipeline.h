@@ -21,8 +21,6 @@
 #ifndef P4_PIPELINE_H
 #define P4_PIPELINE_H
 
-#define MAX_PKT_SIZE 2048
-
 #include <bm/bm_sim/packet.h>
 #include <bm/bm_sim/switch.h>
 
@@ -31,6 +29,8 @@
 
 #include "ns3/pointer.h"
 #include "ns3/packet.h"
+
+#include "base-p4-pipe.h"
 
 namespace ns3 {
 
@@ -101,27 +101,12 @@ typedef struct {
  *
  * A P4 programmable pipeline.
  */
-class SimpleP4Pipe : public bm::Switch {
+class SimpleP4Pipe : public BaseP4Pipe {
  public:
   /**
-   * \brief SimplePipe constructor
+   * \brief SimpleP4Pipe constructor
    */
   SimpleP4Pipe (std::string jsonFile);
-
-  /**
-   * \brief Run the provided CLI commands to populate table entries
-   */
-  void run_cli(std::string commandsFile);
-
-  /**
-   * \brief Unused
-   */
-  int receive_(port_t port_num, const char *buffer, int len) override; 
-
-  /**
-   * \brief Unused
-   */
-  void start_and_return_() override; 
 
   /**
    * \brief Invoke the P4 processing pipeline (parser, match-action, deparser)
@@ -140,7 +125,6 @@ class SimpleP4Pipe : public bm::Switch {
   Ptr<Packet> get_ns3_packet(std::unique_ptr<bm::Packet> bm_packet);
 
  private:
-  static int thrift_port;
   static bm::packet_id_t packet_id;
   static uint8_t ns2bm_buf[MAX_PKT_SIZE];
 };
