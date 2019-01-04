@@ -243,7 +243,29 @@ public:
   // TODO(sibanez): list drop reasons
   static constexpr const char* LIMIT_EXCEEDED_DROP = "Queue disc limit exceeded";  //!< Packet dropped due to queue disc limit exceeded
 
+  /*
+   * The following methods are all the same as the QueueDisc::* methods except they consume
+   * an extra parameter deq_data, which indicates the node and PIFO to dequeue from.
+   * TODO(sibanez): Is there a better way to do this than copy over the functions?
+   */
+  void Run (deq_data_t deq_data);
+  void Restart (deq_data_t deq_data);
+  Ptr<QueueDiscItem> DequeuePacket (deq_data_t deq_data);
+  Ptr<QueueDiscItem> Dequeue (deq_data_t deq_data);
+
 private:
+  /// JSON file which speicifes the configuration of the Pifo Tree
+  std::string m_pifoTreeJson;
+
+  /// Store pointers to all PifoTreeNodes
+  std::vector<Ptr<PifoTreeNode>> m_nodes;
+
+  /**
+   * \brief Helper method for DoDequeue()
+   * \param deq_data specifies which node and PIFO to dequeue from
+   */
+  virtual Ptr<QueueDiscItem> DoDequeue (deq_data_t deq_data);
+
   virtual bool DoEnqueue (Ptr<QueueDiscItem> item);
   virtual Ptr<QueueDiscItem> DoDequeue (void);
   virtual Ptr<const QueueDiscItem> DoPeek (void);

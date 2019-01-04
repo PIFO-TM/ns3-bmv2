@@ -547,24 +547,6 @@ PifoTreeQueueDisc::CheckConfig (void)
     {
       NS_LOG_ERROR ("PifoTreeQueueDisc needs at least one queue disc class");
       return false;
-
-      // TODO(sibanez): remove this ...
-//      // create and add one PIFO queue disc
-//      ObjectFactory factory;
-//      factory.SetTypeId ("ns3::PifoQueueDisc");
-//      factory.Set ("MaxSize", QueueSizeValue (GetMaxSize ()));
-//
-//      // create PIFO queue disc
-//      Ptr<PifoQueueDisc> pifo = factory.Create<PifoQueueDisc> ();
-//      // add filter
-//      Ptr<DefaultPifoFilter> filter = CreateObject<DefaultPifoFilter> ();
-//      pifo->AddPacketFilter (filter);
-//
-//      pifo->Initialize ();
-//      
-//      Ptr<QueueDiscClass> c = CreateObject<QueueDiscClass> ();
-//      c->SetQueueDisc (pifo);
-//      AddQueueDiscClass (c);
     }
 
   if (GetNPacketFilters () != 0)
@@ -586,6 +568,58 @@ void
 PifoTreeQueueDisc::InitializeParams (void)
 {
   NS_LOG_FUNCTION (this);
+  NS_LOG_INFO ("Initializing PifoTreeQueueDisc params.");
+
+  // create and initialize the Pifo Tree
+  if ( m_pifoTreeJson != "")
+    {
+      config = ReadPifoTreeJson (m_pifoTreeJson);
+      BuildPifoTree (config);
+    }
+
 }
+
+config_t
+ReadPifoTreeJson (std::string jsonFile)
+{
+  NS_LOG_FUNCTION (this);
+
+  // TODO(sibanez): implement this ...
+  // return parsed Json file
+}
+
+void
+BuildPifoTree (config_t config)
+{
+  NS_LOG_FUNCTION (this);
+
+  // TODO(sibanez): implement this ...
+  // Iterate through nodes, build each one 
+
+  /*
+   Sample PIFO tree specification:
+
+   num_nodes: 7
+
+   // 0 is the root node
+   // parent nodeID : list of children nodeIDs
+   0: 3, 4
+   1: 5, 6
+
+   // specify numer of PIFOs per node
+   0: 1 pifo
+   1: 1 pifo
+   2: 1 pifo
+   ...   
+
+   // specify location of enq/deq logic for each node
+   0: enq=(/path/to/enq/json), deq=(/path/to/deq/json)
+   1: enq=(/path/to/enq/json), deq=(/path/to/deq/json)
+   ...
+
+   */
+
+}
+
 
 } // namespace ns3
