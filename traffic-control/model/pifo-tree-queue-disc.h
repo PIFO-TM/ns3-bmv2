@@ -28,6 +28,47 @@
 namespace ns3 {
 
 /**
+ * \brief The functor used to compare PIFO entries based on priority.
+ */
+template<typename T>
+struct PifoEntryComp {
+  bool operator()(const T &lhs, const T &rhs) const {
+    return lhs.GetPriority() >= rhs.GetPriority();
+  }
+};
+
+/**
+ * \brief Template Pifo implementation
+ */
+// TODO(sibanez): need to add trace sources to this to track occupancy?
+// TODO(sibanez): use std::vector or std::deque?
+template<typename T,
+         typename Sequence = std::vector<T>,
+         typename Compare = PifoEntryComp<T> >
+class Pifo : public std::priority_queue<T,Sequence,Compare> {
+
+public:
+  Pifo() : m_lastPopTime(0) {}
+
+  void
+  dequeue ()
+    {
+      pop(); // invoke priority_queue pop() method
+      m_lastPopTime = Simulator::Now ().GetNanoSeconds ();
+    }
+
+  /// Get the last time the dequeue() method was invoked
+  int64_t
+  lastPopTime ()
+    {
+      return m_lastPopTime;
+    }
+
+private:
+  int64_t m_lastPopTime;
+}
+
+/**
  * \ingroup traffic-control
  *
  * The object stored within a PIFO.
@@ -149,8 +190,8 @@ public:
   Ptr<QueueDiscItem> DequeuePifo (uint8_t pifo_id);
 
 private:
-  EnqP4Pipe m_enqPipe;
-  DeqP4Pipe m_deqPipe;
+  EnqP4Pipe* m_enqPipe;
+  DeqP4Pipe* m_deqPipe;
 
   static uint32_t nodeID;
 
@@ -160,6 +201,9 @@ private:
   std::vector<Ptr<PifoTreeNode>> m_children;
   // TODO(sibanez): PrioQueue would require using Ptr<PifoEntry>, is it better to avoid the dynamic memory allocation and use a priority queue that stores actual objects?
   std::vector<Pifo<PifoEntry>> m_pifos;
+
+  /// map global node IDs to local node IDs
+  std::map<uint32_t, uint8_t> m_global2Local; 
 
   // P4 trace vars
   TracedValue<uint32_t> m_enqP4Var1;

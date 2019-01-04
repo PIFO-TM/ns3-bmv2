@@ -104,18 +104,43 @@ TypeId PifoTreeNode::GetTypeId (void)
 // initialize static attributes
 uint32_t PifoTreeNode::nodeID = 0;
 
-// TODO(sibanez): implement this ...
-PifoTreeNode::PifoTreeNode ()
+PifoTreeNode::PifoTreeNode (std::string enq_json, std::string deq_json, bool is_leaf, Ptr<PifoTreeNode> parent, int num_pifos)
 {
   NS_LOG_FUNCTION (this);
 
+  m_enqPipe = new EnqP4Pipe (enq_json);
+  m_deqPipe = new DeqP4Pipe (deq_json);
+
   m_globalID = nodeID++;
+  m_isLeaf = is_leaf;
+  m_parent = parent;
+  for (int i = 0; i < num_pifos; i++)
+    {
+      // Add a new PIFO
+      m_pifos.emplace_back ();
+    }
 
 }
 
 PifoTreeNode::~PifoTreeNode ()
 {
   NS_LOG_FUNCTION (this);
+
+  delete m_enqPipe;
+  delete m_deqPipe;
+}
+
+void
+PifoTreeNode::AddChild (Ptr<PifoTreeNode> child)
+{
+  NS_LOG_FUNCTION (this);
+
+  uint32_t global_id = child->GetGlobalID ();
+  uint8_t local_id = m_children.size ();
+  m_children.push_back (child);
+
+  // record the mapping between global and local IDs
+  m_global2Local[global_id] = local_id;
 }
 
 uint8_t
@@ -372,7 +397,7 @@ PifoTreeNode::DequeuePifo (uint8_t pifo_id)
       // dequeue from the specified PIFO
       uint8_t child_node_id = m_pifos[pifo_id].top ().node_id;
       uint8_t child_pifo_id = m_pifos[pifo_id].top ().pifo_id;
-      m_pifos[pifo_id].pop();
+      m_pifos[pifo_id].dequeue();
       if (!m_isLeaf)
         {
           // this is a non-leaf node so invoke the next dequeue operation

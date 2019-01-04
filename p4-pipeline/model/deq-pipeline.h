@@ -32,6 +32,8 @@
 
 #include "base-p4-pipe.h"
 
+#define MAX_NUM_PIFOS 3
+
 namespace ns3 {
 
 /**
@@ -41,33 +43,16 @@ typedef struct {
   // scheduling/shaping metadata
   int64_t timestamp;
   bool is_leaf;
-  // pifo0 metadata
-  bool     pifo0_is_empty;
-  int64_t  pifo0_last_deq_time;
-  uint8_t  pifo0_child_node_id;
-  uint8_t  pifo0_child_pifo_id;
-  uint32_t pifo0_rank;
-  int64_t  pifo0_tx_time;
-  uint32_t pifo0_tx_delta;
-  uint32_t pifo0_pkt_len;
-  // pifo1 metadata
-  bool     pifo1_is_empty;
-  int64_t  pifo1_last_deq_time;
-  uint8_t  pifo1_child_node_id;
-  uint8_t  pifo1_child_pifo_id;
-  uint32_t pifo1_rank;
-  int64_t  pifo1_tx_time;
-  uint32_t pifo1_tx_delta;
-  uint32_t pifo1_pkt_len;
-  // pifo2 metadata
-  bool     pifo2_is_empty;
-  int64_t  pifo2_last_deq_time;
-  uint8_t  pifo2_child_node_id;
-  uint8_t  pifo2_child_pifo_id;
-  uint32_t pifo2_rank;
-  int64_t  pifo2_tx_time;
-  uint32_t pifo2_tx_delta;
-  uint32_t pifo2_pkt_len;
+  // pifo metadata
+  bool[MAX_NUM_PIFOS]     pifo_is_empty;
+  int64_t[MAX_NUM_PIFOS]  pifo_last_deq_time;
+  uint8_t[MAX_NUM_PIFOS]  pifo_child_node_id;
+  uint8_t[MAX_NUM_PIFOS]  pifo_child_pifo_id;
+  uint32_t[MAX_NUM_PIFOS] pifo_rank;
+  int64_t[MAX_NUM_PIFOS]  pifo_tx_time;
+  uint32_t[MAX_NUM_PIFOS] pifo_tx_delta;
+  uint32_t[MAX_NUM_PIFOS] pifo_pkt_len;
+
   // P4 program outputs
   uint8_t pifo_id;
   uint32_t deq_delay; // non-zero value will schedule dequeue operation to complete in the future
