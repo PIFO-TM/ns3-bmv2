@@ -50,7 +50,7 @@ public:
 
   // Reasons for dropping packets
   // TODO(sibanez): list drop reasons
-  static constexpr const char* LIMIT_EXCEEDED_DROP = "Queue disc limit exceeded";  //!< Packet dropped due to queue disc limit exceeded
+  static constexpr const char* LIMIT_EXCEEDED_DROP = "Buffer limit exceeded";
 
   /*
    * The following methods are all the same as the QueueDisc::* methods except they consume
@@ -63,11 +63,14 @@ public:
   Ptr<QueueDiscItem> Dequeue (deq_data_t deq_data);
 
 private:
+  ClassificationP4Pipe* m_classPipe;
+
   /// JSON file which speicifes the configuration of the Pifo Tree
   std::string m_pifoTreeJson;
-
   /// Store pointers to all PifoTreeNodes
   std::vector<Ptr<PifoTreeNode>> m_nodes;
+  /// The packet buffer used to make drop decisions
+  PifoTreeBuffer m_buffer;
 
   virtual bool DoEnqueue (Ptr<QueueDiscItem> item);
   virtual Ptr<QueueDiscItem> DoDequeue (void);
@@ -79,9 +82,43 @@ private:
    * \brief Helper method for DoDequeue()
    * \param deq_data specifies which node and PIFO to dequeue from
    */
-  virtual Ptr<QueueDiscItem> DoDequeue (deq_data_t deq_data);
+  Ptr<QueueDiscItem> DoDequeue (deq_data_t deq_data);
 
+  /**
+   * \brief Configure classification logic
+   */
+  void ConfigClassification (Json::Value classLogic);
 
+  /**
+   * \brief Configure buffer sizes
+   */
+  void ConfigBuffers (Json::Value bufferSizes);
+
+  /**
+   * \brief Configure a PIFO tree node
+   */
+  void ConfigNode (Json::Value jsonRoot, std::string param);
+
+  /**
+   * \brief Build and configure the PIFO tree queue disc from the provided JSON file
+   */
+  void BuildPifoTree (std::string pifoTreeJson);
+
+  /**
+   * \brief Attempt to enqueue the queue disc item into the specified buffer
+   * \param bufID ID of the buffer to enqueue into
+   * \param item ptr to the queue disc item being enqueued
+   * \returns bool indicating whether or not enqueue operation was successful
+   */
+   bool EnqueueBuffer (uint32_t bufID, Ptr<QueueDiscItem> item);
+
+  /**
+   * \brief Enqueue into the specified leaf node.
+   * \param leafID global ID of the desired leaf node to enqueue into
+   * \param item ptr to the queue disc item being enqueued
+   * \returns bool indicating whether or not enqueue operation was successful
+   */
+   bool EnqueueLeaf (uint32_t leafID, Ptr<QueueDiscItem> item);
 
 };
 

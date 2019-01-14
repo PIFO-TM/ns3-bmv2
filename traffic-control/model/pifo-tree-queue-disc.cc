@@ -53,6 +53,7 @@ TypeId PifoTreeQueueDisc::GetTypeId (void)
 }
 
 PifoTreeQueueDisc::PifoTreeQueueDisc ()
+  // TODO(sibanez): what should we use here?
   : QueueDisc (QueueDiscSizePolicy::MULTIPLE_QUEUES, QueueSizeUnit::PACKETS)
 {
   NS_LOG_FUNCTION (this);
@@ -61,6 +62,8 @@ PifoTreeQueueDisc::PifoTreeQueueDisc ()
 PifoTreeQueueDisc::~PifoTreeQueueDisc ()
 {
   NS_LOG_FUNCTION (this);
+
+  delete m_classPipe;
 }
 
 bool
@@ -68,47 +71,73 @@ PifoTreeQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
 {
   NS_LOG_FUNCTION (this << item);
 
-  // classification logic to determine buf_id
+  // classification logic to determine buffer ID and leaf node ID
   std_class_meta_t std_class_meta;
   std_class_meta.flow_hash = item->Hash ();
+  std_class_meta.buf_id = 0;
+  std_class_meta.leaf_id = 0;
   // TODO(sibanez): initialize metadata
   m_p4ClassPipe->process_pipeline (std_class_meta);
 
-  if (GetBufSize (std_class_meta.buf_id) >= GetMaxSize ())
+  // Attempt to enqueue into the specified buffer
+  if (!m_buffer.Enqueue(std_class_meta.buf_id, item))
     {
-      NS_LOG_LOGIC ("Queue disc limit exceeded -- dropping packet");
+      NS_LOG_LOGIC ("Buffer " << std_class_meta.buf_id << " is full -- dropping packet");
       DropBeforeEnqueue (item, LIMIT_EXCEEDED_DROP);
       return false;
     }
 
-  // compute the path of the packet from leaf to root
-  // compute all rank values
-  // insert item into the leaf node and Ptr<QueueDiscClass> into other nodes
-  // None of the enqueue operations into the PIFOs should ever fail (they should have unlimited size)
-  std_sched_meta_t std_sched_meta;
-  std_sched_meta.flow_hash = item->Hash ();
-  // TODO(sibanez): initialize metadata
-  m_p4SchedPipe->process_pipeline (std_sched_meta);
-
-  uint32_t[MAX_LEVELS] path = {std_sched_meta.node0, std_sched_meta.node1, std_sched_meta.node2, std_sched_meta.node3, std_sched_meta.node4};
-  uint32_t[MAX_LEVELS] ranks = {std_sched_meta.rank0, std_sched_meta.rank1, std_sched_meta.rank2, std_sched_meta.rank3, std_sched_meta.rank4};
-
-  for (int i=0; i < GetNumLevels(); i++)
-    {
-      
-    }
+  // TODO(sibanez): initialize metadata ...
+  sched_meta_t sched_meta;
+  sched_meta.pkt_len = item->GetSize ();
+  sched_meta.flow_hash = item->Hash ();
+  sched_meta.buf_id = std_class_meta.buf_id;
+  sched_meta.buf_size = 
+  sched_meta.max_buf_size =
+  // buffer enqueue was successful so enqueue into the specified leaf node
+  // This operation will fail if provided ID is invalid
+  bool retval = EnqueueLeaf (std_class_meta.leaf_id, item, sched_meta);
 
   // If Queue::Enqueue fails, QueueDisc::DropBeforeEnqueue is called by the
   // internal queue because QueueDisc::AddInternalQueue sets the trace callback
 
   if (!retval)
     {
-      NS_LOG_WARN ("Packet enqueue failed. Check the size of the internal queues");
+      NS_LOG_ERROR ("Packet enqueue failed unexpectedly.");
     }
 
-  NS_LOG_LOGIC ("Number packets band " << band << ": " << GetInternalQueue (band)->GetNPackets ());
-
   return retval;
+}
+
+bool
+PifoTreeQueueDisc::EnqueueBuffer (uint32_t bufID, Ptr<QueueDiscItem> item)
+{
+  NS_LOG_FUNCTION (this);
+
+  NS_ASSERT_MSG (bufID < m_buffers.size (), "Provided bufID " << bufID << " is invalid.");
+
+  if (m_buffers[bufID] + item->GetSize () > m_buffer_limits[bufID])
+    {
+      return false;
+    }
+
+  m_buffers[bufID] += item->GetSize ();
+  return true;
+}
+
+bool
+PifoTreeQueueDisc::EnqueueLeaf (uint32_t leafID, Ptr<QueueDiscItem> item, sched_meta_t sched_meta)
+{
+  NS_LOG_FUNCTION (this);
+
+  if (leafID >= m_nodes.size ())
+    {
+      NS_LOG_ERROR ("Computed leaf node ID " << leafID << " is invalid");
+      return false
+    }
+ 
+  bool ret = m_nodes[leafID].Enqueue (item, sched_meta);
+  return ret;
 }
 
 Ptr<QueueDiscItem>
@@ -116,7 +145,9 @@ PifoTreeQueueDisc::DoDequeue (void)
 {
   NS_LOG_FUNCTION (this);
 
-  Ptr<QueueDiscItem> item;
+  Ptr<PifoTreeItem> item;
+
+  item = m_nodes[0].Dequeue();
 
   for (uint32_t i = 0; i < GetNInternalQueues (); i++)
     {
@@ -136,6 +167,8 @@ Ptr<const QueueDiscItem>
 PifoTreeQueueDisc::DoPeek (void)
 {
   NS_LOG_FUNCTION (this);
+
+  //TODO(sibanez): implement this ...
 
   Ptr<const QueueDiscItem> item;
 
@@ -157,9 +190,9 @@ bool
 PifoTreeQueueDisc::CheckConfig (void)
 {
   NS_LOG_FUNCTION (this);
-  if (GetNQueueDiscClasses () == 0)
+  if (GetNQueueDiscClasses () != 0)
     {
-      NS_LOG_ERROR ("PifoTreeQueueDisc needs at least one queue disc class");
+      NS_LOG_ERROR ("PifoTreeQueueDisc needs no queue disc class");
       return false;
     }
 
@@ -190,6 +223,18 @@ PifoTreeQueueDisc::InitializeParams (void)
       BuildPifoTree (m_pifoTreeJson);
     }
 
+}
+
+void
+PifoTreeQueueDisc::ConfigClassification (Json::Value classLogic)
+{
+  NS_LOG_FUNCTION (this);
+
+  std::string classJson = classLogic[0].asString ();
+  std::string classCmds = classLogic[1].asString ();
+
+  m_classPipe = new ClassificationP4Pipe (classJson);
+  m_classPipe->run_cli (classCmds);
 }
 
 void
@@ -238,6 +283,18 @@ PifoTreeQueueDisc::BuildPifoTree (std::string pifoTreeJson)
    Sample PIFO tree JSON file:
 
 {
+    "class-logic" : ["/path/to/class-logic.json", "/path/to/classCommands.txt"],
+    "buffer-config" :
+    {
+        "num-bufIDs" : 3,
+        "buffer-sizes" : [10000],
+        "bufID-map" :
+        {
+            "0" : [0],
+            "1" : [0],
+            "2" : [0]
+        }
+    },
     "num-nodes" : 3,
     "tree" :
     {
@@ -276,6 +333,12 @@ PifoTreeQueueDisc::BuildPifoTree (std::string pifoTreeJson)
         NS_LOG_ERROR ("Error parsing json file: \n" << errs);
       }
     NS_ASSERT (ok);
+
+    // initialize classification pipeline
+    ConfigClassification (jsonRoot["class-logic"]);
+
+    // configure buffer
+    m_buffer.Configure(jsonRoot["buffer-sizes"]);
 
     // allocate nodes into std::vector
     for (int i = 0; i < jsonRoot["num-nodes"].asInt(); i++)
