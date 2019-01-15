@@ -40,9 +40,10 @@ namespace ns3 {
 typedef struct {
   uint32_t pkt_len;
   uint32_t flow_hash;
-  uint32_t buf_id;
-  uint32_t buf_size;
-  uint32_t max_buf_size;
+  uint32_t buffer_id;
+  uint32_t partition_id;
+  uint32_t partition_size;
+  uint32_t partition_max_size;
 } sched_meta_t;
 
 /**

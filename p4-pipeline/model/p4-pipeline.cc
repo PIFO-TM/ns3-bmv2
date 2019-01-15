@@ -40,7 +40,6 @@
 namespace ns3 {
 
 // initialize static attributes
-bm::packet_id_t SimpleP4Pipe::packet_id = 0;
 uint8_t SimpleP4Pipe::ns2bm_buf[MAX_PKT_SIZE] = {};
 
 SimpleP4Pipe::SimpleP4Pipe (std::string jsonFile)

@@ -111,8 +111,8 @@ DeqP4Pipe::process_pipeline(std_deq_meta_t &std_meta) {
   bm::Pipeline *mau = this->get_pipeline("ingress");
   bm::PHV *phv;
 
-  // TODO(sibanez): set this correctly
-  auto packet = new_packet_ptr();
+  // TODO(sibanez): is this set correctly?
+  auto packet = new_packet_ptr(0, packet_id++, 0, bm::PacketBuffer (0));
 
   BMELOG(packet_in, *packet);
 

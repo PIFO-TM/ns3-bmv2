@@ -18,10 +18,8 @@
  * Author: Stephen Ibanez <sibanez@stanford.edu>
  */
 
-#ifndef BASE_P4_PIPE_H
-#define BASE_P4_PIPE_H
-
-#define MAX_PKT_SIZE 2048
+#ifndef CLASSIFICATION_PIPELINE_H
+#define CLASSIFICATION_PIPELINE_H
 
 #include <bm/bm_sim/packet.h>
 #include <bm/bm_sim/switch.h>
@@ -32,36 +30,47 @@
 #include "ns3/pointer.h"
 #include "ns3/packet.h"
 
+#include "base-p4-pipe.h"
+
 namespace ns3 {
+
+/**
+ * \brief The standard metadata for PifoTreeQueueDisc classification pipeline
+ */
+typedef struct {
+  // Input metadata
+  uint32_t pkt_len;
+  uint32_t flow_hash;
+  int64_t timestamp;
+  // Output metadata
+  uint32_t buffer_id;
+  uint32_t leaf_id;
+  // P4 program tracedata
+  uint32_t trace_var1;          // input/output
+  uint32_t trace_var2;          // input/output
+  uint32_t trace_var3;          // input/output
+  uint32_t trace_var4;          // input/output
+} std_class_meta_t;
 
 /**
  * \ingroup p4-pipeline
  *
- * Base class for a P4 programmable pipeline.
+ * Architecture used to implement P4 classification logic for PifoTreeQueueDisc
  */
-class BaseP4Pipe : public bm::Switch {
+class ClassificationP4Pipe : public BaseP4Pipe {
  public:
   /**
-   * \brief Run the provided CLI commands to populate table entries
+   * \brief ClassificationP4Pipe constructor
    */
-  void run_cli(std::string commandsFile);
+  ClassificationP4Pipe (std::string jsonFile);
 
   /**
-   * \brief Unused
+   * \brief Invoke the P4 processing pipeline (match-action only)
    */
-  int receive_(port_t port_num, const char *buffer, int len) override; 
-
-  /**
-   * \brief Unused
-   */
-  void start_and_return_() override; 
-
- private:
-  static bm::packet_id_t packet_id;
-  static int thrift_port;
+  void process_pipeline(std_enq_meta_t &std_meta);
 };
 
 }
 
-#endif /* P4_PIPELINE_H */
+#endif /* CLASSIFICATION_PIPELINE_H */
 

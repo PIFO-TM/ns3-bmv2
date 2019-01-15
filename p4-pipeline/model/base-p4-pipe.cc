@@ -76,6 +76,7 @@ REGISTER_HASH(hash_ex);
 REGISTER_HASH(bmv2_hash);
 
 // initialize static attributes
+bm::packet_id_t BaseP4Pipe::packet_id = 0;
 int BaseP4Pipe::thrift_port = 9090;
 
 void
@@ -92,12 +93,12 @@ BaseP4Pipe::run_cli(std::string commandsFile) {
 }
 
 void
-EnqP4Pipe::start_and_return_() {
+BaseP4Pipe::start_and_return_() {
 
 }
 
 int
-EnqP4Pipe::receive_(port_t port_num, const char *buffer, int len)
+BaseP4Pipe::receive_(port_t port_num, const char *buffer, int len)
 {
   return 0;
 }

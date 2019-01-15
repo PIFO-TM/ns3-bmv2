@@ -33,28 +33,21 @@
 #include <chrono>
 #include <thread>
 
-#include "enq-pipeline.h"
+#include "classification-pipeline.h"
 
 // NOTE: do not include "ns3/log.h" because of name conflict with LOG_DEBUG
 
 namespace ns3 {
 
-EnqP4Pipe::EnqP4Pipe (std::string jsonFile)
+ClassificationP4Pipe::ClassificationP4Pipe (std::string jsonFile)
 {
   // Required fields
   add_required_field("standard_metadata", "pkt_len");
   add_required_field("standard_metadata", "flow_hash");
-  add_required_field("standard_metadata", "buf_id");
-  add_required_field("standard_metadata", "buf_size");
-  add_required_field("standard_metadata", "max_buf_size");
   add_required_field("standard_metadata", "timestamp");
-  add_required_field("standard_metadata", "is_leaf");
-  add_required_field("standard_metadata", "child_node_id");
-  add_required_field("standard_metadata", "child_pifo_id");
   // P4 program outputs
-  add_required_field("standard_metadata", "rank");
-  add_required_field("standard_metadata", "pifo_id");
-  add_required_field("standard_metadata", "enq_delay");
+  add_required_field("standard_metadata", "buffer_id");
+  add_required_field("standard_metadata", "leaf_id");
   // P4 program tracedata
   add_required_field("standard_metadata", "trace_var1");
   add_required_field("standard_metadata", "trace_var2");
@@ -88,7 +81,7 @@ EnqP4Pipe::EnqP4Pipe (std::string jsonFile)
 }
 
 void
-EnqP4Pipe::process_pipeline(std_enq_meta_t &std_meta) {
+ClassificationP4Pipe::process_pipeline(std_class_meta_t &std_meta) {
   bm::Pipeline *mau = this->get_pipeline("ingress");
   bm::PHV *phv;
 
@@ -105,16 +98,9 @@ EnqP4Pipe::process_pipeline(std_enq_meta_t &std_meta) {
   // using packet register 0 to store length, this register will be updated for
   // each add_header / remove_header primitive call
   packet->set_register(PACKET_LENGTH_REG_IDX, len);
-  phv->get_field("standard_metadata.pkt_len").set(std_meta.sched_meta.pkt_len);
-  phv->get_field("standard_metadata.flow_hash").set(std_meta.sched_meta.flow_hash);
-  phv->get_field("standard_metadata.buf_id").set(std_meta.sched_meta.buf_id);
-  phv->get_field("standard_metadata.buf_size").set(std_meta.sched_meta.buf_size);
-  phv->get_field("standard_metadata.max_buf_size").set(std_meta.sched_meta.max_buf_size);
+  phv->get_field("standard_metadata.pkt_len").set(std_meta.pkt_len);
+  phv->get_field("standard_metadata.flow_hash").set(std_meta.flow_hash);
   phv->get_field("standard_metadata.timestamp").set(std_meta.timestamp);
-  phv->get_field("standard_metadata.is_leaf").set(std_meta.is_leaf);
-  phv->get_field("standard_metadata.child_node_id").set(std_meta.child_node_id);
-  phv->get_field("standard_metadata.child_pifo_id").set(std_meta.child_pifo_id);
-
   phv->get_field("standard_metadata.trace_var1").set(std_meta.trace_var1);
   phv->get_field("standard_metadata.trace_var2").set(std_meta.trace_var2);
   phv->get_field("standard_metadata.trace_var3").set(std_meta.trace_var3);
@@ -134,25 +120,13 @@ EnqP4Pipe::process_pipeline(std_enq_meta_t &std_meta) {
   std_meta.trace_var4 = phv->get_field("standard_metadata.trace_var4").get_int();
 
   /* Set output fields */
-  int rank = phv->get_field("standard_metadata.rank").get_int();
-  BMLOG_DEBUG_PKT(*packet, "rank field is {}", rank);
-  std_meta.rank = rank;
+  int buffer_id = phv->get_field("standard_metadata.buffer_id").get_int();
+  BMLOG_DEBUG_PKT(*packet, "buffer_id field is {}", buffer_id);
+  std_meta.buffer_id = buffer_id;
 
-  int pifo_id = phv->get_field("standard_metadata.pifo_id").get_int();
-  BMLOG_DEBUG_PKT(*packet, "pifo_id field is {}", pifo_id);
-  std_meta.pifo_id = pifo_id;
-
-  int enq_delay = phv->get_field("standard_metadata.enq_delay").get_int();
-  BMLOG_DEBUG_PKT(*packet, "enq_delay field is {}", enq_delay);
-  std_meta.enq_delay = enq_delay;
-
-  uint64_t tx_time = phv->get_field("standard_metadata.tx_time").get_uint64();
-  BMLOG_DEBUG_PKT(*packet, "tx_time field is {}", tx_time);
-  std_meta.tx_time = (int64_t)tx_time; //TODO(sibanez): can we get rid of this cast?
-
-  int tx_delta = phv->get_field("standard_metadata.tx_delta").get_int();
-  BMLOG_DEBUG_PKT(*packet, "tx_delta field is {}", tx_delta);
-  std_meta.tx_delta = tx_delta;
+  int leaf_id = phv->get_field("standard_metadata.leaf_id").get_int();
+  BMLOG_DEBUG_PKT(*packet, "leaf_id field is {}", leaf_id);
+  std_meta.leaf_id = leaf_id;
 
   BMELOG(packet_out, *packet);
   BMLOG_DEBUG_PKT(*packet, "Transmitting packet");
