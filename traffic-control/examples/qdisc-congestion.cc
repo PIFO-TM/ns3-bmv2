@@ -85,6 +85,25 @@ std::string maxQueueSize = "500KB";
 double maxQueueBytes = 500000.0; // used to convert P4 EWMA samples
 uint32_t meanPktSize = 1000; //500;
 double qW = 0.002;
+double QueueDelayReference = 0.02; // PIE attribute - target delay in seconds -- default vaule is 20 ms
+uint32_t DequeueThreshold = 10000; // PIE attribute - Minimum queue size in bytes before dequeue rate is measured 
+uint32_t m_bytesTotal = 0;
+
+void PrintThroughput (Ptr<OutputStreamWrapper> stream) // in Mbps calculated every sec 
+{ 
+  double mbps = 8.0 * m_bytesTotal / 1e6; 
+  *stream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << mbps << std::endl; 
+  m_bytesTotal = 0; 
+  Simulator::Schedule (Seconds (1.0), &PrintThroughput, stream); 
+} 
+
+
+void PhyRxTrace (Ptr<const Packet> packet) 
+{ 
+  m_bytesTotal += packet->GetSize (); 
+} 
+
+
 
 void
 CheckQueueSize (Ptr<QueueDisc> queue)
@@ -139,6 +158,13 @@ QueueLatencyTrace (Ptr<OutputStreamWrapper> stream, int64_t oldValue, int64_t ne
 {
   *stream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << newValue << std::endl;
 }
+
+void
+DropProbTrace (Ptr<OutputStreamWrapper> stream, uint32_t oldValue, uint32_t newValue)
+{
+  *stream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << newValue << std::endl;
+}
+
 
 void
 BuildAppsTest ()
@@ -322,6 +348,19 @@ configQdisc (std::string qdiscSelection, TrafficControlHelper &tchQdisc)
 
       tchQdisc.SetRootQueueDisc ("ns3::RedQueueDisc");
     }
+  else if (qdiscSelection == "pie")
+    {
+      // RED params
+      NS_LOG_INFO ("Set PIE params");
+      Config::SetDefault ("ns3::PieQueueDisc::MaxSize", StringValue (maxQueueSize));
+      Config::SetDefault ("ns3::PieQueueDisc::MeanPktSize", UintegerValue (meanPktSize));
+      Config::SetDefault ("ns3::PieQueueDisc::QueueDelayReference", TimeValue ( Seconds(QueueDelayReference) ) );
+      Config::SetDefault ("ns3::PieQueueDisc::DequeueThreshold", UintegerValue (DequeueThreshold));
+
+      // TODO: Add further parameters
+
+      tchQdisc.SetRootQueueDisc ("ns3::PieQueueDisc");
+    }
   else if (qdiscSelection == "p4")
     {
       if (jsonFile == "" || commandsFile == "")
@@ -363,7 +402,7 @@ main (int argc, char *argv[])
   bool printStats = true;
 
   global_start_time = 0.0;
-  global_stop_time = 11; 
+  global_stop_time = 60; 
   sink_start_time = global_start_time;
   sink_stop_time = global_stop_time + 3.0;
   client_start_time = sink_start_time + 0.2;
@@ -486,16 +525,28 @@ main (int argc, char *argv[])
   //
   Ptr<OutputStreamWrapper> qsizeStream = asciiTraceHelper.CreateFileStream (pathOut + "/" + qdiscSelection + "/" + qdiscSelection + "-inst-qsize.plotme");
   qdisc->TraceConnectWithoutContext ("BytesInQueue", MakeBoundCallback (&InstQueueSizeTrace, qsizeStream));
-  //
-  // Configure tracing of the EWMA queue size
-  //
-  Ptr<OutputStreamWrapper> ewmaStream = asciiTraceHelper.CreateFileStream (pathOut + "/" + qdiscSelection + "/" + qdiscSelection + "-ewma-qsize.plotme");
-  qdisc->TraceConnectWithoutContext ("AvgQueueSize", MakeBoundCallback (&EwmaQueueSizeTrace, ewmaStream));
+
+  if ( qdiscSelection == "p4" || qdiscSelection == "red")
+    {
+      //
+      // Configure tracing of the EWMA queue size
+      //
+      Ptr<OutputStreamWrapper> ewmaStream = asciiTraceHelper.CreateFileStream (pathOut + "/" + qdiscSelection + "/" + qdiscSelection + "-ewma-qsize.plotme");
+      qdisc->TraceConnectWithoutContext ("AvgQueueSize", MakeBoundCallback (&EwmaQueueSizeTrace, ewmaStream));
+    }
+
   //
   // Configure tracing of packet drops
   //
   Ptr<OutputStreamWrapper> dropStream = asciiTraceHelper.CreateFileStream (pathOut + "/" + qdiscSelection + "/" + qdiscSelection + "-drop-times.plotme");
   qdisc->TraceConnectWithoutContext ("Drop", MakeBoundCallback (&TcDropTrace, dropStream));
+
+  //
+  // Configure tracing of throughput on the bottleneck link
+  //
+  Config::ConnectWithoutContext("/NodeList/3/DeviceList/1/$ns3::PointToPointNetDevice/MacRx", MakeCallback(&PhyRxTrace));
+  Ptr<OutputStreamWrapper> throughputStream = asciiTraceHelper.CreateFileStream (pathOut + "/" + qdiscSelection + "/" + qdiscSelection + "-throughput.plotme");
+  PrintThroughput (throughputStream); 
 
   if (qdiscSelection == "p4")
     {
@@ -514,6 +565,13 @@ main (int argc, char *argv[])
       //
       Ptr<OutputStreamWrapper> qlatencyStream = asciiTraceHelper.CreateFileStream (pathOut + "/" + qdiscSelection + "/" + qdiscSelection + "-qlatency.plotme");
       qdisc->TraceConnectWithoutContext ("QueueLatency", MakeBoundCallback (&QueueLatencyTrace, qlatencyStream));
+      //
+      // Configure tracing of standard metadata P4Var4 - For PIE AQM it stores the drop probability
+      //
+      Ptr<OutputStreamWrapper> dropProbStream = asciiTraceHelper.CreateFileStream (pathOut + "/" + qdiscSelection + "/" + qdiscSelection + "-drop-prob.plotme");
+      qdisc->TraceConnectWithoutContext ("P4Var4", MakeBoundCallback (&DropProbTrace, dropProbStream));
+
+      
     }
 
   BuildAppsTest ();
