@@ -72,12 +72,12 @@ PifoTreeBuffer::Configure (Json::Value configRoot)
 */
 
   // initialize the buffers
-  Json::Value bufSizes = configRoot["buffer-sizes"];
+  Json::Value bufSizes = configRoot["partition-sizes"];
   for (int i = 0; i < bufSizes.size (); i++)
     {
       uint32_t limit = bufSizes[i].asInt ();
-      m_buffer_limits.push_back(limit);
-      m_buffers.push_back (0);
+      m_partitionLimits.push_back(limit);
+      m_partitions.push_back (0);
     }
 
   // initialize the bufIDMap
@@ -95,7 +95,7 @@ PifoTreeBuffer::Configure (Json::Value configRoot)
 }
 
 bool
-PifoTreeBuffer::Enqueue (uint32_t bufID, Ptr<QueueDiscItem> item, uint32_t& bufIndex)
+PifoTreeBuffer::Enqueue (uint32_t bufID, Ptr<QueueDiscItem> item, sched_meta_t& sched_meta)
 {
   NS_LOG_FUNCTION (this);
 
@@ -108,11 +108,14 @@ PifoTreeBuffer::Enqueue (uint32_t bufID, Ptr<QueueDiscItem> item, uint32_t& bufI
   // check each possible partition in order for space
   for (int i = 0; i < m_bufIDMap[bufID].size (); i++)
     {
-      uint32_t bufIndex = m_bufIDMap[bufID][i];
-      if (m_buffers[bufIndex] + item->GetSize () <= m_buffer_limits[bufIndex])
+      uint32_t partitionID = m_bufIDMap[bufID][i];
+      if (m_partitions[partitionID] + item->GetSize () <= m_partitionLimits[partitionID])
         {
-          m_buffers[bufIndex] += item->GetSize ();
-          bufIndex = i;
+          m_partitions[partitionID] += item->GetSize ();
+          // TODO(sibanez): set buffer related scheduling metadata fields
+          sched_meta.partition_id = i;
+          sched_meta.partition_size = m_partitions[partitionID];
+          sched_meta.partition_max_size = m_partitionLimits[partitionID];
           return true;
         }
     }
@@ -120,23 +123,23 @@ PifoTreeBuffer::Enqueue (uint32_t bufID, Ptr<QueueDiscItem> item, uint32_t& bufI
 }
 
 bool
-PifoTreeBuffer::Dequeue (uint32_t bufIndex, Ptr<QueueDiscItem> item)
+PifoTreeBuffer::Dequeue (uint32_t partitionID, Ptr<QueueDiscItem> item)
 {
   NS_LOG_FUNCTION (this);
 
-  if (bufIndex >= m_buffers.size ())
+  if (partitionID >= m_partitions.size ())
     {
-      NS_LOG_ERROR ("Attempted to dequeue from an invalid buffer " << bufIndex);
+      NS_LOG_ERROR ("Attempted to dequeue from an invalid partition " << partitionID);
       return false;
     }
 
-  if (m_buffers[bufIndex] < item->GetSize ())
+  if (m_partitions[partitionID] < item->GetSize ())
     {
-      NS_LOG_ERROR ("Attempted to dequeue too much from buffer " << bufIndex);
+      NS_LOG_ERROR ("Attempted to dequeue too much from partition " << partitionID);
       return false;
     }
 
-  m_buffers[bufIndex] -= item->GetSize ();
+  m_partitions[partitionID] -= item->GetSize ();
   return true;
 }
 

@@ -43,6 +43,21 @@ class NetDeviceQueueInterface;
 /**
  * \ingroup traffic-control
  *
+ * The QueueDiscDeqData class is just a dummy base class can be derived from by
+ * QueueDisc implementations. Its job is to hold data that can be passed to
+ * the DoDequeue method. The QueueDisc implementation schedules the QueueDisc::Run ()
+ * method and passes it a pointer to some QueueDiscDeqData, which is then eventually
+ * passed along to the DoDequeue method. 
+ */
+class QueueDiscDeqData : public SimpleRefCount {
+public:
+  QueueDiscDeqData ();
+  ~QueueDiscDeqData ();
+}
+
+/**
+ * \ingroup traffic-control
+ *
  * QueueDiscClass is the base class for classes that are included in a queue
  * disc. It has a single attribute, QueueDisc, used to set the child queue disc
  * attached to the class. Classful queue discs needing to set parameters for
@@ -387,7 +402,7 @@ public:
    *
    * \return 0 if the operation was not successful; the item otherwise.
    */
-  Ptr<QueueDiscItem> Dequeue (void);
+  Ptr<QueueDiscItem> Dequeue (Ptr<QueueDiscDeqData> deqData = 0);
 
   /**
    * Get a copy of the next packet the queue discipline will extract. This
@@ -403,7 +418,7 @@ public:
    * Dequeues multiple packets, until a quota is exceeded or sending a packet
    * to the device failed.
    */
-  void Run (void);
+  void Run (Ptr<QueueDiscDeqData> deqData = 0);
 
   /// Internal queues store QueueDiscItem objects
   typedef Queue<QueueDiscItem> InternalQueue;
@@ -601,6 +616,14 @@ private:
   virtual Ptr<QueueDiscItem> DoDequeue (void) = 0;
 
   /**
+   * Same as DoDequeue() but also consumes dequeue metadata which can be
+   * used by queue disc implementations to make dequeue decisions. A 
+   * default implementation is provided which just invokes DoDequeue()
+   * \return 0 if the operation was not successful; the item otherwise.
+   */
+  virtual Ptr<QueueDiscItem> DoDequeue (Ptr<QueueDiscDeqData> deqData);
+
+  /**
    * \brief Return a copy of the next packet the queue disc will extract.
    *
    * The implementation of this method is based on the qdisc_peek_dequeued
@@ -651,13 +674,13 @@ private:
    * Dequeue a packet (by calling DequeuePacket) and send it to the device (by calling Transmit).
    * \return true if a packet is successfully sent to the device.
    */
-  bool Restart (void);
+  bool Restart (Ptr<QueueDiscDeqData> deqData = 0);
 
   /**
    * Modelled after the Linux function dequeue_skb (net/sched/sch_generic.c)
    * \return the requeued packet, if any, or the packet dequeued by the queue disc, otherwise.
    */
-  Ptr<QueueDiscItem> DequeuePacket (void);
+  Ptr<QueueDiscItem> DequeuePacket (Ptr<QueueDiscDeqData> deqData = 0);
 
   /**
    * Modelled after the Linux function dev_requeue_skb (net/sched/sch_generic.c)

@@ -15,15 +15,19 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Author:  Stpehen Ibanez <sibanez@stanford.edu>
+ * Author:  Stephen Ibanez <sibanez@stanford.edu>
  */
 
 #ifndef PIFO_TREE_QDISC_H
 #define PIFO_TREE_QDISC_H
 
 #include "ns3/queue-disc.h"
+#include "ns3/classification-pipeline.h"
 #include "ns3/enq-pipeline.h"
 #include "ns3/deq-pipeline.h"
+#include "json/json.h"
+#include "pifo-tree-buffer.h"
+#include "pifo-tree-node.h"
 
 namespace ns3 {
 
@@ -31,7 +35,8 @@ namespace ns3 {
  * \ingroup traffic-control
  *
  * TODO (sibanez): detailed description ...
- * Scheduling is performed using a tree of PIFO queue discs.
+ * Scheduling is performed using a tree of PIFO queue discs. The is configured
+ * using a JSON file.
  */
 class PifoTreeQueueDisc : public QueueDisc {
 public:
@@ -52,16 +57,6 @@ public:
   // TODO(sibanez): list drop reasons
   static constexpr const char* LIMIT_EXCEEDED_DROP = "Buffer limit exceeded";
 
-  /*
-   * The following methods are all the same as the QueueDisc::* methods except they consume
-   * an extra parameter deq_data, which indicates the node and PIFO to dequeue from.
-   * TODO(sibanez): Is there a better way to do this than copy over the functions?
-   */
-  void Run (deq_data_t deq_data);
-  void Restart (deq_data_t deq_data);
-  Ptr<QueueDiscItem> DequeuePacket (deq_data_t deq_data);
-  Ptr<QueueDiscItem> Dequeue (deq_data_t deq_data);
-
 private:
   ClassificationP4Pipe* m_classPipe;
 
@@ -74,15 +69,16 @@ private:
 
   virtual bool DoEnqueue (Ptr<QueueDiscItem> item);
   virtual Ptr<QueueDiscItem> DoDequeue (void);
-  virtual Ptr<const QueueDiscItem> DoPeek (void);
+  // TODO(sibanez): Is this method needed? Use default base class DoPeek() implementation for now
+  //virtual Ptr<const QueueDiscItem> DoPeek (void);
   virtual bool CheckConfig (void);
   virtual void InitializeParams (void);
 
   /**
    * \brief Helper method for DoDequeue()
-   * \param deq_data specifies which node and PIFO to dequeue from
+   * \param deqData specifies which node and PIFO to dequeue from
    */
-  Ptr<QueueDiscItem> DoDequeue (deq_data_t deq_data);
+  virtual Ptr<QueueDiscItem> DoDequeue (Ptr<DequeueData> deqData) override;
 
   /**
    * \brief Configure classification logic

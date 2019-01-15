@@ -343,8 +343,6 @@ TrafficControlLayer::Send (Ptr<NetDevice> device, Ptr<QueueDiscItem> item)
 
   NS_ASSERT (txq < devQueueIface->GetNTxQueues ());
 
-  // TODO(sibanez): if (m_node->GetObject<P4Midgress>()) -> apply p4midgress
-
   if (ndi->second.m_rootQueueDisc == 0)
     {
       // The device has no attached queue disc, thus add the header to the packet and
@@ -358,7 +356,6 @@ TrafficControlLayer::Send (Ptr<NetDevice> device, Ptr<QueueDiscItem> item)
               SocketPriorityTag priorityTag;
               item->GetPacket ()->RemovePacketTag (priorityTag);
             }
-          // TODO(sibanez): if (m_node->GetObject<P4Egress>()) -> apply p4egress
           device->Send (item->GetPacket (), item->GetAddress (), item->GetProtocol ());
         }
     }

@@ -76,15 +76,17 @@ private:
 class PifoEntry {
 public:
   /**
-   * \brief PifoEntry constructor
-   *
+   * \brief PifoEntry constructor used for leaf node PIFO nodes. No need to specify child node
+   * and PIFO IDs.
    */
-  PifoEntry ();
+  PifoEntry (Ptr<QueueDiscItem> a_item, uint32_t a_rank, int64_t a_tx_time,
+             uint32_t a_tx_delta, sched_meta_t a_sched_meta);
 
   /**
-   * \brief Get the size of this entry (i.e. pkt_len) 
+   * \brief PifoEntry constructor used for non-leaf node PIFO nodes. No need to specify Ptr<QueueDiscItem>
    */
-  uint32_t GetSize (void);
+  PifoEntry (uint8_t a_node_id, uint8_t a_pifo_id, uint32_t a_rank, int64_t a_tx_time,
+             uint32_t a_tx_delta, sched_meta_t a_sched_meta);
 
   /**
    * \brief Get the priority of this entry (i.e. rank)
@@ -103,9 +105,23 @@ public:
   int64_t tx_time;
   /// time at which this entry can be transmitted (relative to previous pkt in PIFO)
   uint32_t tx_delta;
-  /// length of the corresponding packet
-  uint32_t pkt_len;
+  /// Scheduling metadata of the packet that originally created this entry
+  sched_meta_t sched_meta;
 };
+
+/**
+ * \ingroup traffic-control
+ *
+ * Data to pass to DoDequeue when dequeue operation is delayed
+ */
+class PifoTreeDeqData : public QueueDiscDeqData {
+public:
+  PifoTreeDeqData (uint32_t a_nodeID, uint8_t a_pifoID);
+  ~PifoTreeDeqData ();
+
+  uint32_t nodeID;
+  uint8_t pifoID;
+}
 
 /**
  * \ingroup traffic-control
@@ -119,11 +135,17 @@ public:
    * \return the object TypeId
    */
   static TypeId GetTypeId (void);
+
   /**
-   * \brief PifoTreeNode constructor
-   *
+   * \brief Default PifoTreeNode constructor
    */
   PifoTreeNode ();
+
+  /**
+   * \brief PifoTreeNode constructor
+   * \param qdisc pointer to the PifoTreeQueueDisc object that created this node
+   */
+  PifoTreeNode (Ptr<PifoTreeQueueDisc> qdisc);
 
   virtual ~PifoTreeNode();
 
@@ -200,24 +222,19 @@ public:
   /**
    * \brief Dequeue from this node. Use dequeue logic to decide which PIFO to
    *   remove from. Mainly used for the root node.
-   * \returns Pointer to queue disc item
    */
-  Ptr<QueueDiscItem> Dequeue (void);
+  bool Dequeue (Ptr<QueueDiscItem>& item, sched_meta_t& sched_meta);
 
   /**
    * \brief Dequeue the head element from the specified pifo. The difference b/w this method and the
    *   DequeuePifo method is that if pifo_id is invalid then it will invoke Dequeue ()
-   * \param pifo_id the ID of the PIFO to remove from
-   * \returns Pointer to queue disc item
    */
-  Ptr<QueueDiscItem> Dequeue (uint8_t pifo_id);
+  bool Dequeue (uint8_t pifo_id, Ptr<QueueDiscItem>& item, sched_meta_t& sched_meta);
 
   /**
    * \brief Dequeue the head element from the specified pifo.
-   * \param pifo_id the ID of the PIFO to remove from
-   * \returns Pointer to queue disc item
    */
-  Ptr<QueueDiscItem> DequeuePifo (uint8_t pifo_id);
+  bool DequeuePifo (uint8_t pifo_id, Ptr<QueueDiscItem>& item, sched_meta_t& sched_meta);
 
 private:
   EnqP4Pipe* m_enqPipe;
@@ -225,6 +242,7 @@ private:
 
   static uint32_t nodeID;
 
+  Ptr<PifoTreeQueueDisc> m_qdisc;
   uint32_t m_globalID;
   bool m_isLeaf;
   Ptr<PifoTreeNode> m_parent;

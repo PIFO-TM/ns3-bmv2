@@ -37,8 +37,10 @@ NS_OBJECT_TEMPLATE_CLASS_DEFINE (Queue,QueueDiscItem);
 NS_OBJECT_TEMPLATE_CLASS_DEFINE (DropTailQueue,QueueDiscItem);
 NS_OBJECT_TEMPLATE_CLASS_DEFINE (PrioQueue,QueueDiscItem);
 
-NS_LOG_COMPONENT_DEFINE ("QueueDisc");
+DequeueData::DequeueData () {}
+DequeueData::~DequeueData () {}
 
+NS_LOG_COMPONENT_DEFINE ("QueueDisc");
 
 NS_OBJECT_ENSURE_REGISTERED (QueueDiscClass);
 
@@ -928,7 +930,7 @@ QueueDisc::Enqueue (Ptr<QueueDiscItem> item)
 }
 
 Ptr<QueueDiscItem>
-QueueDisc::Dequeue (void)
+QueueDisc::Dequeue (Ptr<DequeueData> deqData)
 {
   NS_LOG_FUNCTION (this);
 
@@ -950,6 +952,10 @@ QueueDisc::Dequeue (void)
           PacketDequeued (item);
         }
     }
+  else if (deqData)
+    {
+      item = DoDequeue (deqData);
+    }
   else
     {
       item = DoDequeue ();
@@ -959,6 +965,13 @@ QueueDisc::Dequeue (void)
   NS_ASSERT (m_nBytes == m_stats.nTotalEnqueuedBytes - m_stats.nTotalDequeuedBytes);
 
   return item;
+}
+
+Ptr<QueueDiscItem>
+QueueDisc::DoDequeue (Ptr<DequeueData> deqData)
+{
+  NS_LOG_FUNCTION (this);
+  return DoDequeue ();
 }
 
 Ptr<const QueueDiscItem>
@@ -987,14 +1000,14 @@ QueueDisc::DoPeek (void)
 }
 
 void
-QueueDisc::Run (void)
+QueueDisc::Run (Ptr<DequeueData> deqData)
 {
   NS_LOG_FUNCTION (this);
 
   if (RunBegin ())
     {
       uint32_t quota = m_quota;
-      while (Restart ())
+      while (Restart (deqData))
         {
           quota -= 1;
           if (quota <= 0)
@@ -1028,10 +1041,10 @@ QueueDisc::RunEnd (void)
 }
 
 bool
-QueueDisc::Restart (void)
+QueueDisc::Restart (Ptr<DequeueData> deqData)
 {
   NS_LOG_FUNCTION (this);
-  Ptr<QueueDiscItem> item = DequeuePacket();
+  Ptr<QueueDiscItem> item = DequeuePacket(deqData);
   if (item == 0)
     {
       NS_LOG_LOGIC ("No packet to send");
@@ -1042,7 +1055,7 @@ QueueDisc::Restart (void)
 }
 
 Ptr<QueueDiscItem>
-QueueDisc::DequeuePacket ()
+QueueDisc::DequeuePacket (Ptr<DequeueData> deqData)
 {
   NS_LOG_FUNCTION (this);
   NS_ASSERT (m_devQueueIface);
@@ -1077,7 +1090,7 @@ QueueDisc::DequeuePacket ()
       // is not stopped.
       if (m_devQueueIface->GetNTxQueues ()>1 || !m_devQueueIface->GetTxQueue (0)->IsStopped ())
         {
-          item = Dequeue ();
+          item = Dequeue (deqData);
           // If the item is not null, add the header to the packet.
           if (item != 0)
             {
@@ -1125,7 +1138,6 @@ QueueDisc::Transmit (Ptr<QueueDiscItem> item)
       item->GetPacket ()->RemovePacketTag (priorityTag);
     }
 
-  // TODO(sibanez): if (m_node->GetObject<P4Egress>()) -> apply p4egress
   m_device->Send (item->GetPacket (), item->GetAddress (), item->GetProtocol ());
 
   // the behavior here slightly diverges from Linux. In Linux, it is advised that

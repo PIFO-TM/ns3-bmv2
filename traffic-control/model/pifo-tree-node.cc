@@ -35,21 +35,41 @@ namespace ns3 {
 // PifoEntry implementation
 //
 
-PifoEntry::PifoEntry ()
+PifoEntry::PifoEntry (Ptr<QueueDiscItem> a_item, uint32_t a_rank, int64_t a_tx_time,
+                      uint32_t a_tx_delta, sched_meta_t a_sched_meta)
+  : item (a_item), node_id (0), pifo_id (0), rank (a_rank),
+    tx_time (a_tx_time), tx_delta (a_tx_delta), sched_meta (a_sched_meta)
 {
-  //TODO(sibanez): complete ...
+  // Nothing to do
 }
 
-uint32_t
-PifoEntry::GetSize (void)
+PifoEntry::PifoEntry (uint8_t a_node_id, uint8_t a_pifo_id, uint32_t a_rank, int64_t a_tx_time,
+                      uint32_t a_tx_delta, sched_meta_t a_sched_meta)
+  : item (0), node_id (a_node_id), pifo_id (a_pifo_id), rank (a_rank),
+    tx_time (a_tx_time), tx_delta (a_tx_delta), sched_meta (a_sched_meta)
 {
-  return m_pktLen;
+  // Nothing to do
 }
 
 uint32_t
 PifoEntry::GetPriority (void)
 {
-  return m_rank;
+  return rank;
+}
+
+//
+// PifoTreeDeqData implementation
+//
+
+PifoTreeDeqData::PifoTreeDeqData (uint32_t a_nodeID, uint8_t a_pifoID)
+  : nodeID (a_nodeID), pifoID (a_pifoID)
+{
+  NS_LOG_FUNCTION (this);
+}
+
+PifoTreeDeqData::~PifoTreeDeqData (void)
+{
+  NS_LOG_FUNCTION (this);
 }
 
 //
@@ -111,9 +131,13 @@ TypeId PifoTreeNode::GetTypeId (void)
 uint32_t PifoTreeNode::nodeID = 0;
 
 PifoTreeNode::PifoTreeNode ()
+  : PifoTreeNode (0) {}
+
+PifoTreeNode::PifoTreeNode (Ptr<PifoTreeQueueDisc> qdisc)
 {
   NS_LOG_FUNCTION (this);
 
+  m_qdisc = qdisc;
   m_globalID = nodeID++;
   m_isLeaf = true;
   m_parent = 0;
@@ -334,7 +358,7 @@ PifoTreeNode::Enqueue (Ptr<QueueDiscItem> item, sched_meta_t sched_meta)
                            std_enq_meta.rank,
                            std_enq_meta.tx_time,
                            std_enq_meta.tx_delta,
-                           sched_meta.pkt_len
+                           sched_meta
                            );
   m_nPackets++;
 
@@ -377,7 +401,7 @@ PifoTreeNode::Enqueue (uint32_t child_node_gid, uint8_t child_pifo_id, sched_met
                            std_enq_meta.rank,
                            std_enq_meta.tx_time,
                            std_enq_meta.tx_delta,
-                           sched_meta.pkt_len
+                           sched_meta
                            );
   m_nPackets++;
 
@@ -412,12 +436,10 @@ PifoTreeNode::EnqueueNext (uint32_t enq_delay, uint8_t pifo_id, sched_meta_t sch
   return result;
 }
 
-Ptr<QueueDiscItem>
-PifoTreeNode::Dequeue (void)
+bool
+PifoTreeNode::Dequeue (Ptr<QueueDiscItem>& item, sched_meta_t& sched_meta)
 {
   NS_LOG_FUNCTION (this);
-
-  Ptr<QueueDiscItem> item;
 
   // allocate and initialize deq metadata
   std_deq_meta_t std_deq_meta;
@@ -440,26 +462,27 @@ PifoTreeNode::Dequeue (void)
     {
       // don't dequeue anything
       item = 0;
+      return false;
     }
   else if (deq_delay > 0)
     {
       // schedule dequeue to try again in the future
-      deq_data_t deq_data;
-      deq_data.nodeID = m_globalID;
-      deq_data.pifoID = 0xff; // indicates pifoID is unspecified so use dequeue logic
-      Simulator::Schedule (Time (deq_delay), &PifoTreeQueueDisc::Run, m_qdisc, deq_data); 
+      uint32_t nodeID = m_globalID;
+      uint8_t pifoID = 0xff;  // indicates pifoID is unspecified so use dequeue logic
+      Ptr<PifoTreeDeqData> deqData = Create<PifoTreeDeqData> (nodeID, pifoID);
+      Simulator::Schedule (Time (deq_delay), &PifoTreeQueueDisc::Run, m_qdisc, deqData); 
       item = 0; // don't dequeue anything for now
+      return false;
     }
   else
     {
-      item = DequeuePifo (pifo_id);
+       // set item and sched_meta
+       return DequeuePifo (pifo_id, item, sched_meta);
     }
-
-  return item;
 }
 
-Ptr<QueueDiscItem>
-PifoTreeNode::Dequeue (uint8_t pifo_id)
+bool
+PifoTreeNode::Dequeue (uint8_t pifo_id, Ptr<QueueDiscItem>& item, sched_meta_t& sched_meta)
 {
   NS_LOG_FUNCTION (this);
 
@@ -469,46 +492,53 @@ PifoTreeNode::Dequeue (uint8_t pifo_id)
     {
       // if the provided pifo_id is invalid then we don't know which PIFO
       // to dequeue from so we will use the P4 dequeue logic to decide
-      item = Dequeue ();
+      return Dequeue (item, sched_meta);
     }
   else
     {
-      item = DequeuePifo (pifo_id);
+      return DequeuePifo (pifo_id, item, sched_meta);
     }
 
   return item;
 }
 
-Ptr<QueueDiscItem>
-PifoTreeNode::DequeuePifo (uint8_t pifo_id)
+bool
+PifoTreeNode::DequeuePifo (uint8_t pifo_id, Ptr<QueueDiscItem>& item, sched_meta_t& sched_meta)
 {
   NS_LOG_FUNCTION (this);
-  Ptr<QueueDiscItem> item;
 
   // NOTE: this method is called by one of the Dequeue () methods, both of which check
-  // to make sure that the pifo_id is valid. Therefore, there's no need to check again
+  // to make sure that the pifo_id is valid. Therefore, there's no need to check again here
 
   if (!m_pifos[pifo_id].empty ())
     {
       // dequeue from the specified PIFO
       uint8_t child_node_id = m_pifos[pifo_id].top ().node_id;
       uint8_t child_pifo_id = m_pifos[pifo_id].top ().pifo_id;
+      item = m_pifos[pifo_id].top ().item;
+      sched_meta = m_pifos[pifo_id].top ().sched_meta;
       m_pifos[pifo_id].dequeue();
       m_nPackets--;
+      // TODO(sibanez): at the moment, this will immediately invoke dequeue on the appropriate child PIFO, but we may eventually want to use dequeue logic at non-root nodes as well.
       if (!m_isLeaf)
         {
           // this is a non-leaf node so invoke the next dequeue operation
           NS_ASSERT (child_node_id < m_children.length());
-          item = m_children[child_node_id]->Dequeue (child_pifo_id);
+          return m_children[child_node_id]->Dequeue (child_pifo_id, item, sched_meta);
+        }
+      else
+        {
+          // this is a leaf node, item and sched_meta are set above
+          return true;
         }
     }
   else
     {
       // specified PIFO is empty
+      NS_LOG_ERROR ("Attempted to dequeue from an empty PIFO " << pifo_id);
       item = 0;
+      return false;
     }
-
-  return item;
 }
 
 } // namespace ns3

@@ -60,10 +60,10 @@ public:
    * \brief Check if packet will fit into buffer
    * \param bufID the ID to use to check for buffer space
    * \param item the packet to enqueue
-   * \param bufIndex index of the buffer into which the packet was enqueued, set by the function call
+   * \param sched_meta struct reference, buffering related metadata fields are populated
    * \return bool indicating enqueue operation was successful
    */
-  bool Enqueue (uint32_t bufID, Ptr<QueueDiscItem> item, uint32_t& bufIndex);
+  bool Enqueue (uint32_t bufID, Ptr<QueueDiscItem> item, sched_meta_t& sched_meta);
 
   /**
    * \brief Remove packet from specified buffer index
@@ -71,14 +71,14 @@ public:
    * \param item the packet to dequeue
    * \return bool indicating whether or not dequeue was successful
    */
-  bool Dequeue (uint32_t bufIndex, Ptr<QueueDiscItem> item);
+  bool Dequeue (uint32_t partitionID, Ptr<QueueDiscItem> item);
 
 private:
   /// The set of current buffer partition sizes
-  std::vector<uint32_t> m_buffers;
+  std::vector<uint32_t> m_partitions;
   /// The max limit on the size of each partition
-  std::vector<uint32_t> m_buffer_limits;
-  /// Map a buffer ID to list of buffer indicies, each index is checked in order for space
+  std::vector<uint32_t> m_partitionLimits;
+  /// Map a buffer ID to list of partition indicies, each index is checked in order for space
   std::map<uint32_t, std::vector<uint32_t>> m_bufIDMap;
 
 
