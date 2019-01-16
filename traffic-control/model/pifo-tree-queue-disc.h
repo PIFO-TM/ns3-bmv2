@@ -35,7 +35,7 @@ namespace ns3 {
  * \ingroup traffic-control
  *
  * TODO (sibanez): detailed description ...
- * Scheduling is performed using a tree of PIFO queue discs. The is configured
+ * Scheduling is performed using a tree of PIFO nodes. The queue disc is configured
  * using a JSON file.
  */
 class PifoTreeQueueDisc : public QueueDisc {
@@ -56,23 +56,21 @@ public:
   // Reasons for dropping packets
   // TODO(sibanez): list drop reasons
   static constexpr const char* LIMIT_EXCEEDED_DROP = "Buffer limit exceeded";
+  static constexpr const char* PIFO_TREE_DROP = "Failed to enqueue into PifoTree (should not happen)";
 
 private:
-  ClassificationP4Pipe* m_classPipe;
-
-  /// JSON file which speicifes the configuration of the Pifo Tree
-  std::string m_pifoTreeJson;
-  /// Store pointers to all PifoTreeNodes
-  std::vector<Ptr<PifoTreeNode>> m_nodes;
-  /// The packet buffer used to make drop decisions
-  PifoTreeBuffer m_buffer;
-
   virtual bool DoEnqueue (Ptr<QueueDiscItem> item);
   virtual Ptr<QueueDiscItem> DoDequeue (void);
   // TODO(sibanez): Is this method needed? Use default base class DoPeek() implementation for now
   //virtual Ptr<const QueueDiscItem> DoPeek (void);
   virtual bool CheckConfig (void);
   virtual void InitializeParams (void);
+
+  /// Get the JSON source file
+  std::string GetJsonFile (void) const;
+
+  /// Set the JSON source file
+  void SetJsonFile (std::string jsonFile);
 
   /**
    * \brief Helper method for DoDequeue()
@@ -91,9 +89,9 @@ private:
   void ConfigBuffers (Json::Value bufferSizes);
 
   /**
-   * \brief Configure a PIFO tree node
+   * \brief Configure each PIFO tree node
    */
-  void ConfigNode (Json::Value jsonRoot, std::string param);
+  void ConfigNodes (Json::Value jsonRoot, std::string param);
 
   /**
    * \brief Build and configure the PIFO tree queue disc from the provided JSON file
@@ -115,6 +113,24 @@ private:
    * \returns bool indicating whether or not enqueue operation was successful
    */
    bool EnqueueLeaf (uint32_t leafID, Ptr<QueueDiscItem> item);
+
+  //
+  // PifoTreeQueueDisc Attributes
+  //
+
+  ClassificationP4Pipe* m_classPipe;
+
+  /// JSON file which speicifes the configuration of the Pifo Tree
+  std::string m_pifoTreeJson;
+  /// Store pointers to all PifoTreeNodes
+  std::vector<Ptr<PifoTreeNode>> m_nodes;
+  /// The packet buffer used to make drop decisions
+  PifoTreeBuffer m_buffer;
+
+  TracedValue<uint32_t> m_p4ClassVar1; //!< 1st traced P4 classification variable
+  TracedValue<uint32_t> m_p4ClassVar2; //!< 2nd traced P4 classification variable
+  TracedValue<uint32_t> m_p4ClassVar3; //!< 3rd traced P4 classification variable
+  TracedValue<uint32_t> m_p4ClassVar4; //!< 4th traced P4 classification variable
 
 };
 

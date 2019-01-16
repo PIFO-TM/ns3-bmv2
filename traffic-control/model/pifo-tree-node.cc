@@ -277,9 +277,10 @@ PifoTreeNode::InitEnqMeta (std_enq_meta_t& std_enq_meta)
 {
   std_enq_meta.sched_meta.pkt_len = 0;
   std_enq_meta.sched_meta.flow_hash = 0;
-  std_enq_meta.sched_meta.buf_id = 0;
-  std_enq_meta.sched_meta.buf_size = 0;
-  std_enq_meta.sched_meta.max_buf_size = 0;
+  std_enq_meta.sched_meta.buffer_id = 0;
+  std_enq_meta.sched_meta.partition_id = 0;
+  std_enq_meta.sched_meta.partition_size = 0;
+  std_enq_meta.sched_meta.partition_max_size = 0;
   std_enq_meta.timestamp = Simulator::Now ().GetNanoSeconds ();
   std_enq_meta.is_leaf = m_isLeaf;
   std_enq_meta.child_node_id = 0;
@@ -304,6 +305,7 @@ PifoTreeNode::InitDeqMeta (std_deq_meta_t& std_deq_meta)
   std_deq_meta.is_leaf = m_isLeaf;
 
   // initialize PIFO metadata
+  // NOTE: MAX_NUM_PIFOS is defined in deq-pipeline.h
   for (int = 0; i < MAX_NUM_PIFOS; i++)
     {
       std_deq_meta.pifo_is_empty[i]      = (i < m_pifos.size ()) ? m_pifos[i].empty () : true;
@@ -316,6 +318,7 @@ PifoTreeNode::InitDeqMeta (std_deq_meta_t& std_deq_meta)
       std_deq_meta.pifo_pkt_len[i]       = (i < m_pifos.size ()) ? m_pifos[i].top ().pkt_len : 0;
     }
 
+  // P4 program outputs
   std_deq_meta.pifo_id = 0;
   std_deq_meta.deq_delay = 0;
 
@@ -329,6 +332,13 @@ bool
 PifoTreeNode::Enqueue (Ptr<QueueDiscItem> item, sched_meta_t sched_meta)
 {
   NS_LOG_FUNCTION (this);
+
+  // this method can only be called on leaf nodes
+  if (!m_isLeaf)
+    {
+      NS_LOG_ERROR ("Attempted to enqueue a packet into a non-leaf node");
+      return false;
+    }
 
   // TODO(sibanez): check m_lastEnqTime to make sure an enqueue has not already happened in this slot. If so, then reschedule enqueue for next ns.
 
@@ -371,6 +381,13 @@ bool
 PifoTreeNode::Enqueue (uint32_t child_node_gid, uint8_t child_pifo_id, sched_meta_t sched_meta)
 {
   NS_LOG_FUNCTION (this);
+
+  // this method can only be called on non-leaf nodes
+  if (m_isLeaf)
+    {
+      NS_LOG_ERROR ("Attempted to enqueue PIFO ptr into leaf node");
+      return false;
+    }
 
   // TODO(sibanez): check m_lastEnqTime to make sure an enqueue has not already happened in this slot. If so, then reschedule enqueue for next ns.
 

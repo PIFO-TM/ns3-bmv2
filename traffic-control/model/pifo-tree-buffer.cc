@@ -23,7 +23,6 @@
 
 #include "ns3/log.h"
 #include "ns3/object-factory.h"
-#include "json/json.h"
 #include "pifo-tree-buffer.h"
 
 namespace ns3 {
@@ -39,6 +38,12 @@ TypeId PifoTreeBuffer::GetTypeId (void)
     .SetGroupName ("TrafficControl")
     .AddConstructor<PifoTreeBuffer> ()
     // TODO(sibanez): Add trace callback to track enqueues and dequeues into a buffer partition
+    .AddTraceSource ("Enqueue", "Enqueue a packet into a buffer partition",
+                     MakeTraceSourceAccessor (&PifoTreeBuffer::m_traceEnqueue),
+                     "ns3::QueueDiscItem::TracedCallback")
+    .AddTraceSource ("Dequeue", "Dequeue a packet from a buffer partition",
+                     MakeTraceSourceAccessor (&PifoTreeBuffer::m_traceDequeue),
+                     "ns3::QueueDiscItem::TracedCallback")
   ;
   return tid;
 }
@@ -62,7 +67,7 @@ PifoTreeBuffer::Configure (Json::Value configRoot)
   Sample config:
 
   "num-bufIDs" : 3,
-  "buffer-sizes" : [10000],
+  "partition-sizes" : [10000],
   "bufID-map" :
   {
       "0" : [0],
@@ -85,10 +90,11 @@ PifoTreeBuffer::Configure (Json::Value configRoot)
   Json::Value mapConfig = configRoot["bufID-map"];
   for (int i = 0; i < numBufIDs; i++)
     {
-      Json::Value indicies = mapConfig[std::to_string(i)];
-      for (int j = 0; j < indicies.size (); j++)
+      Json::Value partitions = mapConfig[std::to_string(i)];
+      // add all partitions that this buffer can access
+      for (int j = 0; j < partitions.size (); j++)
         {
-          m_bufIDMap[i].push_back (indicies[j].asInt ());
+          m_bufIDMap[i].push_back (partitions[j].asInt ());
         }
     }
 
@@ -112,13 +118,17 @@ PifoTreeBuffer::Enqueue (uint32_t bufID, Ptr<QueueDiscItem> item, sched_meta_t& 
       if (m_partitions[partitionID] + item->GetSize () <= m_partitionLimits[partitionID])
         {
           m_partitions[partitionID] += item->GetSize ();
-          // TODO(sibanez): set buffer related scheduling metadata fields
+          // Set buffer related scheduling metadata fields
           sched_meta.partition_id = i;
           sched_meta.partition_size = m_partitions[partitionID];
           sched_meta.partition_max_size = m_partitionLimits[partitionID];
+          // fire enqueue trace
+          m_traceEnqueue (item, i);
           return true;
         }
     }
+
+  // No valid partition has space, drop packet
   return false;
 }
 
@@ -140,6 +150,8 @@ PifoTreeBuffer::Dequeue (uint32_t partitionID, Ptr<QueueDiscItem> item)
     }
 
   m_partitions[partitionID] -= item->GetSize ();
+  // fire dequeue trace
+  m_traceDequeue (item, partitionID);
   return true;
 }
 
