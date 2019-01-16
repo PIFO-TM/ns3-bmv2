@@ -25,7 +25,7 @@
 #include "ns3/classification-pipeline.h"
 #include "ns3/enq-pipeline.h"
 #include "ns3/deq-pipeline.h"
-#include "json/json.h"
+#include "ns3/json.h"
 #include "pifo-tree-buffer.h"
 #include "pifo-tree-node.h"
 
@@ -81,17 +81,17 @@ private:
   /**
    * \brief Configure classification logic
    */
-  void ConfigClassification (Json::Value classLogic);
+  void ConfigClassification (Json::Value& classLogic);
 
   /**
    * \brief Configure buffer sizes
    */
-  void ConfigBuffers (Json::Value bufferSizes);
+  void ConfigBuffers (Json::Value& bufferSizes);
 
   /**
    * \brief Configure each PIFO tree node
    */
-  void ConfigNodes (Json::Value jsonRoot, std::string param);
+  void ConfigNodes (Json::Value& jsonRoot, std::string param);
 
   /**
    * \brief Build and configure the PIFO tree queue disc from the provided JSON file

@@ -25,7 +25,7 @@
 #include "ns3/traced-value.h"
 #include "ns3/traced-callback.h"
 #include "ns3/queue-item.h"
-#include "json/json.h"
+#include "ns3/json.h"
 
 namespace ns3 {
 

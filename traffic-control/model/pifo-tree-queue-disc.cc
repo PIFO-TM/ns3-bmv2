@@ -275,7 +275,7 @@ PifoTreeQueueDisc::InitializeParams (void)
 }
 
 void
-PifoTreeQueueDisc::ConfigClassification (Json::Value classLogic)
+PifoTreeQueueDisc::ConfigClassification (Json::Value& classLogic)
 {
   NS_LOG_FUNCTION (this);
 
@@ -287,7 +287,7 @@ PifoTreeQueueDisc::ConfigClassification (Json::Value classLogic)
 }
 
 void
-PifoTreeQueueDisc::ConfigNodes (Json::Value jsonRoot, std::string param)
+PifoTreeQueueDisc::ConfigNodes (Json::Value& jsonRoot, std::string param)
 {
   NS_LOG_FUNCTION (this);
 

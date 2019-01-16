@@ -21,8 +21,12 @@ def build(bld):
       'model/prio-queue-disc.cc',
       'model/mq-queue-disc.cc',
       'model/tbf-queue-disc.cc',
-      'model/pifo-queue-disc.cc',
       'model/p4-queue-disc.cc',
+      'model/pifo-queue-disc.cc',
+      'third-party/jsoncpp/jsoncpp.cc',
+      'model/pifo-tree-buffer.cc',
+      'model/pifo-tree-node.cc',
+      'model/pifo-tree-queue-disc.cc',
       'helper/traffic-control-helper.cc',
       'helper/queue-disc-container.cc'
         ]
@@ -56,8 +60,13 @@ def build(bld):
       'model/prio-queue-disc.h',
       'model/mq-queue-disc.h',
       'model/tbf-queue-disc.h',
-      'model/pifo-queue-disc.h',
       'model/p4-queue-disc.h',
+      'model/pifo-queue-disc.h',
+      'third-party/jsoncpp/json/json-forwards.h',
+      'third-party/jsoncpp/json/json.h',
+      'model/pifo-tree-buffer.h',
+      'model/pifo-tree-node.h',
+      'model/pifo-tree-queue-disc.h',
       'helper/traffic-control-helper.h',
       'helper/queue-disc-container.h'
         ]

@@ -18,7 +18,11 @@ def configure(conf):
 def build(bld):
     module = bld.create_ns3_module('p4-pipeline', ['core', 'network'])
     module.source = [
+        'model/base-p4-pipe.cc',
         'model/p4-pipeline.cc',
+        'model/classification-pipeline.cc',
+        'model/deq-pipeline.cc',
+        'model/deq-pipeline.cc',
         'model/primitives.cc',
         'helper/p4-pipeline-helper.cc',
         ]
@@ -33,7 +37,11 @@ def build(bld):
     headers = bld(features='ns3header')
     headers.module = 'p4-pipeline'
     headers.source = [
+        'model/base-p4-pipe.h',
         'model/p4-pipeline.h',
+        'model/classification-pipeline.h',
+        'model/enq-pipeline.h',
+        'model/deq-pipeline.h',
         'helper/p4-pipeline-helper.h',
         ]
 
