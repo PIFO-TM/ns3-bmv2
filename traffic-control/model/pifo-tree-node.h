@@ -24,6 +24,7 @@
 #include <string>
 #include <queue>
 
+#include "ns3/simulator.h"
 #include "ns3/queue-disc.h"
 #include "ns3/enq-pipeline.h"
 #include "ns3/deq-pipeline.h"

@@ -20,6 +20,7 @@
  */
 
 #include <fstream>
+#include <sstream>
 
 #include "ns3/log.h"
 #include "ns3/object-factory.h"
@@ -287,8 +288,8 @@ PifoTreeQueueDisc::ConfigClassification (Json::Value& classLogic)
 {
   NS_LOG_FUNCTION (this);
 
-  std::string classJson = m_jsonDir + classLogic[0].asString ();
-  std::string classCmds = m_jsonDir + classLogic[1].asString ();
+  std::string classJson = m_jsonDir + "/" + classLogic[0].asString ();
+  std::string classCmds = m_jsonDir + "/" + classLogic[1].asString ();
 
   m_classPipe = new ClassificationP4Pipe (classJson);
   m_classPipe->run_cli (classCmds);
@@ -304,18 +305,19 @@ PifoTreeQueueDisc::ConfigNodes (Json::Value& jsonRoot, std::string param)
   bool ret;
   for (Json::Value::const_iterator itr = data.begin() ; itr != data.end() ; itr++)
     {
-      int nodeID = itr.key ().asInt ();
+      int nodeID;
+      std::stringstream (itr.key ().asString ()) >> nodeID;
       NS_ASSERT_MSG (nodeID < (int) m_nodes.size (), "Invalid node ID " << nodeID << " in JSON file");
       if (param == "enq-logic")
         {
-          std::string enqJson = m_jsonDir + (*itr)[0].asString ();
-          std::string enqCommands = m_jsonDir + (*itr)[1].asString ();
+          std::string enqJson = m_jsonDir + "/" + (*itr)[0].asString ();
+          std::string enqCommands = m_jsonDir + "/" + (*itr)[1].asString ();
           ret = m_nodes[nodeID]->AddEnqLogic (enqJson, enqCommands);
         }
       else if (param == "deq-logic")
         {
-          std::srting deqJson = m_jsonDir + (*itr)[0].asString ();
-          std::srting deqCommands = m_jsonDir + (*itr)[1].asString ();
+          std::string deqJson = m_jsonDir + "/" + (*itr)[0].asString ();
+          std::string deqCommands = m_jsonDir + "/" + (*itr)[1].asString ();
           ret = m_nodes[nodeID]->AddDeqLogic (deqJson, deqCommands);
         }
       else if (param == "num-pifos")
@@ -396,7 +398,7 @@ PifoTreeQueueDisc::BuildPifoTree (std::string pifoTreeJson)
     ConfigClassification (jsonRoot["class-logic"]);
 
     // configure buffer
-    m_buffer.Configure(jsonRoot["buffer-sizes"]);
+    m_buffer.Configure(jsonRoot["buffer-config"]);
 
     // allocate nodes into std::vector
     for (int i = 0; i < jsonRoot["num-nodes"].asInt(); i++)
@@ -418,7 +420,8 @@ PifoTreeQueueDisc::BuildPifoTree (std::string pifoTreeJson)
     Json::Value treeRoot = jsonRoot["tree"];
     for (Json::Value::const_iterator itr = treeRoot.begin() ; itr != treeRoot.end() ; itr++)
       {
-        int parentID = itr.key ().asInt ();
+        int parentID;
+        std::stringstream (itr.key ().asString ()) >> parentID;
         NS_ASSERT_MSG (parentID < (int) m_nodes.size (), "Invalid parent ID in PifoTree JSON file");
         Json::Value children = (*itr);
         // add children

@@ -32,6 +32,8 @@ struct standard_metadata_t {
     //
     // Inputs
     //
+    bit<64> timestamp;
+    bool is_leaf;
     // PIFO 0 metadata
     bool    pifo0_is_empty;
     bit<64> pifo0_last_deq_time;

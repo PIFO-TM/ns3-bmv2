@@ -77,12 +77,13 @@ PifoTreeBuffer::Configure (Json::Value configRoot)
 */
 
   // initialize the buffers
-  Json::Value bufSizes = configRoot["partition-sizes"];
-  for (uint32_t i = 0; i < bufSizes.size (); i++)
+  Json::Value partitionSizes = configRoot["partition-sizes"];
+  for (uint32_t i = 0; i < partitionSizes.size (); i++)
     {
-      uint32_t limit = bufSizes[i].asInt ();
+      uint32_t limit = partitionSizes[i].asInt ();
       m_partitionLimits.push_back(limit);
       m_partitions.push_back (0);
+      NS_LOG_LOGIC ("Partition " << i << " limit = " << limit);
     }
 
   // initialize the bufIDMap
@@ -94,6 +95,7 @@ PifoTreeBuffer::Configure (Json::Value configRoot)
       // add all partitions that this buffer can access
       for (uint32_t j = 0; j < partitions.size (); j++)
         {
+          NS_LOG_LOGIC ("Adding partition " << partitions[j].asInt () << " for bufID " << i);
           m_bufIDMap[i].push_back (partitions[j].asInt ());
         }
     }
