@@ -67,7 +67,7 @@ class ClassificationP4Pipe : public BaseP4Pipe {
   /**
    * \brief Invoke the P4 processing pipeline (match-action only)
    */
-  void process_pipeline(std_enq_meta_t &std_meta);
+  void process_pipeline(std_class_meta_t &std_meta);
 };
 
 }

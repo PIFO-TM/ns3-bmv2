@@ -37,8 +37,6 @@
 
 // NOTE: do not include "ns3/log.h" because of name conflict with LOG_DEBUG
 
-#define PACKET_LENGTH_REG_IDX 0
-
 extern int import_primitives();
 
 namespace ns3 {

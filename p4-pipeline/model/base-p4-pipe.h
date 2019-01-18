@@ -22,6 +22,7 @@
 #define BASE_P4_PIPE_H
 
 #define MAX_PKT_SIZE 2048
+#define PACKET_LENGTH_REG_IDX 0
 
 #include <bm/bm_sim/packet.h>
 #include <bm/bm_sim/switch.h>
@@ -56,7 +57,7 @@ class BaseP4Pipe : public bm::Switch {
    */
   void start_and_return_() override; 
 
- private:
+ protected:
   static bm::packet_id_t packet_id;
   static int thrift_port;
 };

@@ -37,6 +37,8 @@
 
 // NOTE: do not include "ns3/log.h" because of name conflict with LOG_DEBUG
 
+extern int import_primitives();
+
 namespace ns3 {
 
 // initialize static attributes

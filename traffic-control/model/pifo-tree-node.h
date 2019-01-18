@@ -21,11 +21,17 @@
 #ifndef PIFO_TREE_NODE_H
 #define PIFO_TREE_NODE_H
 
+#include <string>
+#include <queue>
+
 #include "ns3/queue-disc.h"
 #include "ns3/enq-pipeline.h"
 #include "ns3/deq-pipeline.h"
 
 namespace ns3 {
+
+// forward declaration of PifoTreeQueueDisc class
+class PifoTreeQueueDisc;
 
 /**
  * \brief The functor used to compare PIFO entries based on priority.
@@ -33,7 +39,7 @@ namespace ns3 {
 template<typename T>
 struct PifoEntryComp {
   bool operator()(const T &lhs, const T &rhs) const {
-    return lhs.GetPriority() >= rhs.GetPriority();
+    return lhs.rank >= rhs.rank;
   }
 };
 
@@ -45,7 +51,7 @@ struct PifoEntryComp {
 template<typename T,
          typename Sequence = std::vector<T>,
          typename Compare = PifoEntryComp<T> >
-class Pifo : public std::priority_queue<T,Sequence,Compare> {
+class Pifo : public std::priority_queue<T, Sequence, Compare> {
 
 public:
   Pifo() : m_lastPopTime(0) {}
@@ -53,7 +59,7 @@ public:
   void
   dequeue ()
     {
-      pop(); // invoke priority_queue pop() method
+      this->pop(); // invoke priority_queue pop() method
       m_lastPopTime = Simulator::Now ().GetNanoSeconds ();
     }
 
@@ -66,7 +72,7 @@ public:
 
 private:
   int64_t m_lastPopTime;
-}
+};
 
 /**
  * \ingroup traffic-control
@@ -87,11 +93,6 @@ public:
    */
   PifoEntry (uint8_t a_node_id, uint8_t a_pifo_id, uint32_t a_rank, int64_t a_tx_time,
              uint32_t a_tx_delta, sched_meta_t a_sched_meta);
-
-  /**
-   * \brief Get the priority of this entry (i.e. rank)
-   */
-  uint32_t GetPriority (void);
 
   /// The queue disc item, which is only valid for PIFOs in a leaf node
   Ptr<QueueDiscItem> item;
@@ -121,7 +122,7 @@ public:
 
   uint32_t nodeID;
   uint8_t pifoID;
-}
+};
 
 /**
  * \ingroup traffic-control
@@ -182,7 +183,12 @@ public:
   /**
    * \brief Lookup the local ID of the node given the global node ID
    */
-  uint8_t GetLocalNodeID (uint32_t global_node_id);
+  uint8_t GetLocalID (uint32_t global_node_id);
+
+  /**
+   * \brief Return the global ID of the node
+   */
+  uint32_t GetGlobalID (void);
 
   /**
    * \brief Initialize the enqueue metadata
@@ -200,7 +206,7 @@ public:
    * \param sched_meta various metadata fields used for the enqueue logic
    * \returns bool indicating enqueue was successful
    */
-  bool Enqueue (Ptr<QueueDiscItem> item, sched_meta_t sched_meta);
+  bool EnqueueLeaf (Ptr<QueueDiscItem> item, sched_meta_t sched_meta);
 
   /**
    * \brief Enqueue an entry into the specified PIFO. This is the enqueue method used for non-leaf nodes.
@@ -209,7 +215,7 @@ public:
    * \param sched_meta various metadata fields used for the enqueue logic
    * \returns bool indicating enqueue was successful
    */
-  bool Enqueue (uint32_t child_node_gid, uint8_t child_pifo_id, sched_meta_t sched_meta);
+  bool EnqueueNonLeaf (uint32_t child_node_gid, uint8_t child_pifo_id, sched_meta_t sched_meta);
 
   /**
    * \brief Perform the next enqueue operation.

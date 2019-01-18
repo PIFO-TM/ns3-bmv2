@@ -73,10 +73,17 @@ private:
   void SetJsonFile (std::string jsonFile);
 
   /**
-   * \brief Helper method for DoDequeue()
-   * \param deqData specifies which node and PIFO to dequeue from
+   * \brief A default implementation of this function is provided in the QueueDisc class.
+   *  Here we override it to extract the nodeID and pifoID stored in the deqData object.
    */
-  virtual Ptr<QueueDiscItem> DoDequeue (Ptr<DequeueData> deqData) override;
+  virtual Ptr<QueueDiscItem> DoDequeue (Ptr<QueueDiscDeqData> deqData) override;
+
+  /**
+   * \brief This is the DoDequeue() method that does all the work.
+   * \param nodeID the global ID of the node to start dequeuing from
+   * \param pifoID the ID of the PIFO within the node to dequeue from
+   */
+  Ptr<QueueDiscItem> DoDequeue (uint32_t nodeID, uint8_t pifoID);
 
   /**
    * \brief Configure classification logic
@@ -110,9 +117,10 @@ private:
    * \brief Enqueue into the specified leaf node.
    * \param leafID global ID of the desired leaf node to enqueue into
    * \param item ptr to the queue disc item being enqueued
+   * \param sched_meta the scheduling metadata associated with this packet
    * \returns bool indicating whether or not enqueue operation was successful
    */
-   bool EnqueueLeaf (uint32_t leafID, Ptr<QueueDiscItem> item);
+   bool EnqueueLeaf (uint32_t leafID, Ptr<QueueDiscItem> item, sched_meta_t sched_meta);
 
   //
   // PifoTreeQueueDisc Attributes

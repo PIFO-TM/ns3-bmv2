@@ -37,6 +37,8 @@
 
 // NOTE: do not include "ns3/log.h" because of name conflict with LOG_DEBUG
 
+extern int import_primitives();
+
 namespace ns3 {
 
 EnqP4Pipe::EnqP4Pipe (std::string jsonFile)
@@ -44,9 +46,10 @@ EnqP4Pipe::EnqP4Pipe (std::string jsonFile)
   // Required fields
   add_required_field("standard_metadata", "pkt_len");
   add_required_field("standard_metadata", "flow_hash");
-  add_required_field("standard_metadata", "buf_id");
-  add_required_field("standard_metadata", "buf_size");
-  add_required_field("standard_metadata", "max_buf_size");
+  add_required_field("standard_metadata", "buffer_id");
+  add_required_field("standard_metadata", "partition_id");
+  add_required_field("standard_metadata", "partition_size");
+  add_required_field("standard_metadata", "partition_max_size");
   add_required_field("standard_metadata", "timestamp");
   add_required_field("standard_metadata", "is_leaf");
   add_required_field("standard_metadata", "child_node_id");
@@ -104,12 +107,13 @@ EnqP4Pipe::process_pipeline(std_enq_meta_t &std_meta) {
 
   // using packet register 0 to store length, this register will be updated for
   // each add_header / remove_header primitive call
-  packet->set_register(PACKET_LENGTH_REG_IDX, len);
+  packet->set_register(PACKET_LENGTH_REG_IDX, 0);
   phv->get_field("standard_metadata.pkt_len").set(std_meta.sched_meta.pkt_len);
   phv->get_field("standard_metadata.flow_hash").set(std_meta.sched_meta.flow_hash);
-  phv->get_field("standard_metadata.buf_id").set(std_meta.sched_meta.buf_id);
-  phv->get_field("standard_metadata.buf_size").set(std_meta.sched_meta.buf_size);
-  phv->get_field("standard_metadata.max_buf_size").set(std_meta.sched_meta.max_buf_size);
+  phv->get_field("standard_metadata.buffer_id").set(std_meta.sched_meta.buffer_id);
+  phv->get_field("standard_metadata.partition_id").set(std_meta.sched_meta.partition_id);
+  phv->get_field("standard_metadata.partition_size").set(std_meta.sched_meta.partition_size);
+  phv->get_field("standard_metadata.partition_max_size").set(std_meta.sched_meta.partition_max_size);
   phv->get_field("standard_metadata.timestamp").set(std_meta.timestamp);
   phv->get_field("standard_metadata.is_leaf").set(std_meta.is_leaf);
   phv->get_field("standard_metadata.child_node_id").set(std_meta.child_node_id);

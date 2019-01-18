@@ -37,6 +37,8 @@
 
 // NOTE: do not include "ns3/log.h" because of name conflict with LOG_DEBUG
 
+extern int import_primitives();
+
 namespace ns3 {
 
 ClassificationP4Pipe::ClassificationP4Pipe (std::string jsonFile)
@@ -97,7 +99,7 @@ ClassificationP4Pipe::process_pipeline(std_class_meta_t &std_meta) {
 
   // using packet register 0 to store length, this register will be updated for
   // each add_header / remove_header primitive call
-  packet->set_register(PACKET_LENGTH_REG_IDX, len);
+  packet->set_register(PACKET_LENGTH_REG_IDX, 0);
   phv->get_field("standard_metadata.pkt_len").set(std_meta.pkt_len);
   phv->get_field("standard_metadata.flow_hash").set(std_meta.flow_hash);
   phv->get_field("standard_metadata.timestamp").set(std_meta.timestamp);

@@ -21,6 +21,7 @@
 #ifndef QUEUE_DISC_H
 #define QUEUE_DISC_H
 
+#include "ns3/simple-ref-count.h"
 #include "ns3/object.h"
 #include "ns3/traced-value.h"
 #include "ns3/traced-callback.h"
@@ -49,11 +50,11 @@ class NetDeviceQueueInterface;
  * method and passes it a pointer to some QueueDiscDeqData, which is then eventually
  * passed along to the DoDequeue method. 
  */
-class QueueDiscDeqData : public SimpleRefCount {
+class QueueDiscDeqData : public SimpleRefCount<QueueDiscDeqData> {
 public:
   QueueDiscDeqData ();
-  ~QueueDiscDeqData ();
-}
+  virtual ~QueueDiscDeqData ();
+};
 
 /**
  * \ingroup traffic-control
@@ -418,7 +419,8 @@ public:
    * Dequeues multiple packets, until a quota is exceeded or sending a packet
    * to the device failed.
    */
-  void Run (Ptr<QueueDiscDeqData> deqData = 0);
+  void Run ();
+  void DoRun (Ptr<QueueDiscDeqData> deqData);
 
   /// Internal queues store QueueDiscItem objects
   typedef Queue<QueueDiscItem> InternalQueue;
@@ -584,6 +586,20 @@ protected:
    */
   bool Mark (Ptr<QueueDiscItem> item, const char* reason);
 
+  /**
+   *  \brief Perform the actions required when the queue disc is notified of
+   *         a packet enqueue
+   *  \param item item that was enqueued
+   */
+  void PacketEnqueued (Ptr<const QueueDiscItem> item);
+
+  /**
+   *  \brief Perform the actions required when the queue disc is notified of
+   *         a packet dequeue
+   *  \param item item that was dequeued
+   */
+  void PacketDequeued (Ptr<const QueueDiscItem> item);
+
 private:
   /**
    * \brief Copy constructor
@@ -697,20 +713,6 @@ private:
    * \return true if the device queue is not stopped and the queue disc is not empty
    */
   bool Transmit (Ptr<QueueDiscItem> item);
-
-  /**
-   *  \brief Perform the actions required when the queue disc is notified of
-   *         a packet enqueue
-   *  \param item item that was enqueued
-   */
-  void PacketEnqueued (Ptr<const QueueDiscItem> item);
-
-  /**
-   *  \brief Perform the actions required when the queue disc is notified of
-   *         a packet dequeue
-   *  \param item item that was dequeued
-   */
-  void PacketDequeued (Ptr<const QueueDiscItem> item);
 
   static const uint32_t DEFAULT_QUOTA = 64; //!< Default quota (as in /proc/sys/net/core/dev_weight)
 

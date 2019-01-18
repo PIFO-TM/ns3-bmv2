@@ -37,8 +37,8 @@ NS_OBJECT_TEMPLATE_CLASS_DEFINE (Queue,QueueDiscItem);
 NS_OBJECT_TEMPLATE_CLASS_DEFINE (DropTailQueue,QueueDiscItem);
 NS_OBJECT_TEMPLATE_CLASS_DEFINE (PrioQueue,QueueDiscItem);
 
-DequeueData::DequeueData () {}
-DequeueData::~DequeueData () {}
+QueueDiscDeqData::QueueDiscDeqData () {}
+QueueDiscDeqData::~QueueDiscDeqData () {}
 
 NS_LOG_COMPONENT_DEFINE ("QueueDisc");
 
@@ -930,7 +930,7 @@ QueueDisc::Enqueue (Ptr<QueueDiscItem> item)
 }
 
 Ptr<QueueDiscItem>
-QueueDisc::Dequeue (Ptr<DequeueData> deqData)
+QueueDisc::Dequeue (Ptr<QueueDiscDeqData> deqData)
 {
   NS_LOG_FUNCTION (this);
 
@@ -968,7 +968,7 @@ QueueDisc::Dequeue (Ptr<DequeueData> deqData)
 }
 
 Ptr<QueueDiscItem>
-QueueDisc::DoDequeue (Ptr<DequeueData> deqData)
+QueueDisc::DoDequeue (Ptr<QueueDiscDeqData> deqData)
 {
   NS_LOG_FUNCTION (this);
   return DoDequeue ();
@@ -1000,7 +1000,14 @@ QueueDisc::DoPeek (void)
 }
 
 void
-QueueDisc::Run (Ptr<DequeueData> deqData)
+QueueDisc::Run (void)
+{
+  NS_LOG_FUNCTION (this);
+  DoRun (0);
+}
+
+void
+QueueDisc::DoRun (Ptr<QueueDiscDeqData> deqData)
 {
   NS_LOG_FUNCTION (this);
 
@@ -1041,7 +1048,7 @@ QueueDisc::RunEnd (void)
 }
 
 bool
-QueueDisc::Restart (Ptr<DequeueData> deqData)
+QueueDisc::Restart (Ptr<QueueDiscDeqData> deqData)
 {
   NS_LOG_FUNCTION (this);
   Ptr<QueueDiscItem> item = DequeuePacket(deqData);
@@ -1055,7 +1062,7 @@ QueueDisc::Restart (Ptr<DequeueData> deqData)
 }
 
 Ptr<QueueDiscItem>
-QueueDisc::DequeuePacket (Ptr<DequeueData> deqData)
+QueueDisc::DequeuePacket (Ptr<QueueDiscDeqData> deqData)
 {
   NS_LOG_FUNCTION (this);
   NS_ASSERT (m_devQueueIface);

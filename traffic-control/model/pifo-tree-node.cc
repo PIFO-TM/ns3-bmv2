@@ -26,7 +26,8 @@
 #include "ns3/queue.h"
 #include "ns3/net-device-queue-interface.h"
 #include "ns3/socket.h"
-#include "json/json.h"
+#include "ns3/simulator.h"
+#include "pifo-tree-queue-disc.h"
 #include "pifo-tree-node.h"
 
 namespace ns3 {
@@ -51,26 +52,16 @@ PifoEntry::PifoEntry (uint8_t a_node_id, uint8_t a_pifo_id, uint32_t a_rank, int
   // Nothing to do
 }
 
-uint32_t
-PifoEntry::GetPriority (void)
-{
-  return rank;
-}
-
 //
 // PifoTreeDeqData implementation
 //
 
 PifoTreeDeqData::PifoTreeDeqData (uint32_t a_nodeID, uint8_t a_pifoID)
   : nodeID (a_nodeID), pifoID (a_pifoID)
-{
-  NS_LOG_FUNCTION (this);
-}
+{}
 
 PifoTreeDeqData::~PifoTreeDeqData (void)
-{
-  NS_LOG_FUNCTION (this);
-}
+{}
 
 //
 // PifoTreeNode implementation
@@ -131,7 +122,8 @@ TypeId PifoTreeNode::GetTypeId (void)
 uint32_t PifoTreeNode::nodeID = 0;
 
 PifoTreeNode::PifoTreeNode ()
-  : PifoTreeNode (0) {}
+  : PifoTreeNode (0)
+{}
 
 PifoTreeNode::PifoTreeNode (Ptr<PifoTreeQueueDisc> qdisc)
 {
@@ -172,7 +164,7 @@ PifoTreeNode::AddEnqLogic (std::string enqJson, std::string enqCommands)
     {
       NS_LOG_ERROR ("Enqueue logic has already been allocated for node " << m_globalID);
       return false;
-    {
+    }
 }
 
 bool
@@ -190,7 +182,7 @@ PifoTreeNode::AddDeqLogic (std::string deqJson, std::string deqCommands)
     {
       NS_LOG_ERROR ("Dequeue logic has already been allocated for node " << m_globalID);
       return false;
-    {
+    }
 }
 
 bool
@@ -262,14 +254,21 @@ PifoTreeNode::CheckConfig (void)
 }
 
 uint8_t
-PifoTreeNode::GetLocalNodeID (uint32_t global_node_id)
+PifoTreeNode::GetLocalID (uint32_t global_node_id)
 {
   NS_LOG_FUNCTION (this);
 
   // if global_node_id is invalid then the enqueue came from a node that is
   // not this node's child! Sould not be possible.
-  NS_ASSERT (m_global2Local.cointains(global_node_id));
+  NS_ASSERT (m_global2Local.count(global_node_id) > 0);
   return m_global2Local[global_node_id];
+}
+
+uint32_t
+PifoTreeNode::GetGlobalID (void)
+{
+  NS_LOG_FUNCTION (this);
+  return m_globalID;
 }
 
 void
@@ -306,7 +305,7 @@ PifoTreeNode::InitDeqMeta (std_deq_meta_t& std_deq_meta)
 
   // initialize PIFO metadata
   // NOTE: MAX_NUM_PIFOS is defined in deq-pipeline.h
-  for (int = 0; i < MAX_NUM_PIFOS; i++)
+  for (uint32_t i = 0; i < MAX_NUM_PIFOS; i++)
     {
       std_deq_meta.pifo_is_empty[i]      = (i < m_pifos.size ()) ? m_pifos[i].empty () : true;
       std_deq_meta.pifo_last_deq_time[i] = (i < m_pifos.size ()) ? m_pifos[i].lastPopTime () : 0;
@@ -315,7 +314,8 @@ PifoTreeNode::InitDeqMeta (std_deq_meta_t& std_deq_meta)
       std_deq_meta.pifo_rank[i]          = (i < m_pifos.size ()) ? m_pifos[i].top ().rank : 0;
       std_deq_meta.pifo_tx_time[i]       = (i < m_pifos.size ()) ? m_pifos[i].top ().tx_time : 0;
       std_deq_meta.pifo_tx_delta[i]      = (i < m_pifos.size ()) ? m_pifos[i].top ().tx_delta : 0;
-      std_deq_meta.pifo_pkt_len[i]       = (i < m_pifos.size ()) ? m_pifos[i].top ().pkt_len : 0;
+      // TODO(sibanez): we really want to use the length of the packet that will be dequeued by this operation, not the length of the packet that created this PIFO entry. How practical is that to obtain?
+      std_deq_meta.pifo_pkt_len[i]       = (i < m_pifos.size ()) ? m_pifos[i].top ().sched_meta.pkt_len : 0;
     }
 
   // P4 program outputs
@@ -329,7 +329,7 @@ PifoTreeNode::InitDeqMeta (std_deq_meta_t& std_deq_meta)
 }
 
 bool
-PifoTreeNode::Enqueue (Ptr<QueueDiscItem> item, sched_meta_t sched_meta)
+PifoTreeNode::EnqueueLeaf (Ptr<QueueDiscItem> item, sched_meta_t sched_meta)
 {
   NS_LOG_FUNCTION (this);
 
@@ -378,7 +378,7 @@ PifoTreeNode::Enqueue (Ptr<QueueDiscItem> item, sched_meta_t sched_meta)
 }
 
 bool
-PifoTreeNode::Enqueue (uint32_t child_node_gid, uint8_t child_pifo_id, sched_meta_t sched_meta)
+PifoTreeNode::EnqueueNonLeaf (uint32_t child_node_gid, uint8_t child_pifo_id, sched_meta_t sched_meta)
 {
   NS_LOG_FUNCTION (this);
 
@@ -395,7 +395,7 @@ PifoTreeNode::Enqueue (uint32_t child_node_gid, uint8_t child_pifo_id, sched_met
   std_enq_meta_t std_enq_meta;
   InitEnqMeta (std_enq_meta);
   std_enq_meta.sched_meta = sched_meta;
-  std_enq_meta.child_node_id = GetLocalNodeID (child_node_gid);
+  std_enq_meta.child_node_id = GetLocalID (child_node_gid);
   std_enq_meta.child_pifo_id = child_pifo_id;
 
   // perform enqueue P4 processing
@@ -423,8 +423,7 @@ PifoTreeNode::Enqueue (uint32_t child_node_gid, uint8_t child_pifo_id, sched_met
   m_nPackets++;
 
   // perform the next enqueue operation
-  bool result = EnqueueNext (enq_delay, pifo_id, sched_meta);
-  return result;
+  return EnqueueNext (enq_delay, pifo_id, sched_meta);
 }
 
 bool
@@ -441,13 +440,13 @@ PifoTreeNode::EnqueueNext (uint32_t enq_delay, uint8_t pifo_id, sched_meta_t sch
   else if (enq_delay > 0)
     {
       // delay the next enqueue operation
-      Simulator::Schedule (Time (enq_delay), &PifoTreeNode::Enqueue, m_parent, m_globalID, pifo_id, sched_meta);
+      Simulator::Schedule (Time (enq_delay), &PifoTreeNode::EnqueueNonLeaf, m_parent, m_globalID, pifo_id, sched_meta);
       result = true;
     }
   else
     {
       // perform the next enqueue immediately
-      result = m_parent->Enqueue (m_globalID, pifo_id, sched_meta);
+      result = m_parent->EnqueueNonLeaf (m_globalID, pifo_id, sched_meta);
     }
 
   return result;
@@ -475,7 +474,7 @@ PifoTreeNode::Dequeue (Ptr<QueueDiscItem>& item, sched_meta_t& sched_meta)
   uint32_t deq_delay = std_deq_meta.deq_delay;
 
   // dequeue from the appropriate PIFO
-  if (pifo_id >= m_pifos.length())
+  if (pifo_id >= m_pifos.size ())
     {
       // don't dequeue anything
       item = 0;
@@ -487,7 +486,7 @@ PifoTreeNode::Dequeue (Ptr<QueueDiscItem>& item, sched_meta_t& sched_meta)
       uint32_t nodeID = m_globalID;
       uint8_t pifoID = 0xff;  // indicates pifoID is unspecified so use dequeue logic
       Ptr<PifoTreeDeqData> deqData = Create<PifoTreeDeqData> (nodeID, pifoID);
-      Simulator::Schedule (Time (deq_delay), &PifoTreeQueueDisc::Run, m_qdisc, deqData); 
+      Simulator::Schedule (Time (deq_delay), &PifoTreeQueueDisc::DoRun, m_qdisc, deqData); 
       item = 0; // don't dequeue anything for now
       return false;
     }
@@ -503,8 +502,6 @@ PifoTreeNode::Dequeue (uint8_t pifo_id, Ptr<QueueDiscItem>& item, sched_meta_t& 
 {
   NS_LOG_FUNCTION (this);
 
-  Ptr<QueueDiscItem> item;
-
   if (pifo_id >= m_pifos.size ())
     {
       // if the provided pifo_id is invalid then we don't know which PIFO
@@ -515,8 +512,6 @@ PifoTreeNode::Dequeue (uint8_t pifo_id, Ptr<QueueDiscItem>& item, sched_meta_t& 
     {
       return DequeuePifo (pifo_id, item, sched_meta);
     }
-
-  return item;
 }
 
 bool
@@ -540,7 +535,7 @@ PifoTreeNode::DequeuePifo (uint8_t pifo_id, Ptr<QueueDiscItem>& item, sched_meta
       if (!m_isLeaf)
         {
           // this is a non-leaf node so invoke the next dequeue operation
-          NS_ASSERT (child_node_id < m_children.length());
+          NS_ASSERT (child_node_id < m_children.size ());
           return m_children[child_node_id]->Dequeue (child_pifo_id, item, sched_meta);
         }
       else

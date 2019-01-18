@@ -26,6 +26,8 @@
 #include "ns3/queue.h"
 #include "ns3/net-device-queue-interface.h"
 #include "ns3/socket.h"
+#include "ns3/string.h"
+#include "ns3/simulator.h"
 #include "pifo-tree-queue-disc.h"
 
 namespace ns3 {
@@ -112,7 +114,7 @@ PifoTreeQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
   std_class_meta.trace_var2 = m_p4ClassVar2;
   std_class_meta.trace_var3 = m_p4ClassVar3;
   std_class_meta.trace_var4 = m_p4ClassVar4;
-  m_p4ClassPipe->process_pipeline (std_class_meta);
+  m_classPipe->process_pipeline (std_class_meta);
 
   // update classification trace variables
   m_p4ClassVar1 = std_class_meta.trace_var1;
@@ -161,11 +163,11 @@ PifoTreeQueueDisc::EnqueueLeaf (uint32_t leafID, Ptr<QueueDiscItem> item, sched_
   if (leafID >= m_nodes.size ())
     {
       NS_LOG_ERROR ("Computed leaf node ID " << leafID << " is invalid");
-      return false
+      return false;
     }
 
-  // NOTE: the node's Enqueue() method will verify that this is indeed a leaf node
-  bool ret = m_nodes[leafID].Enqueue (item, sched_meta);
+  // NOTE: the node's EnqueueLeaf() method will verify that this is indeed a leaf node
+  bool ret = m_nodes[leafID]->EnqueueLeaf (item, sched_meta);
   return ret;
 }
 
@@ -180,13 +182,13 @@ PifoTreeQueueDisc::DoDequeue (void)
 }
 
 Ptr<QueueDiscItem>
-PifoTreeQueueDisc::DoDequeue (Ptr<DequeueData> deqData)
+PifoTreeQueueDisc::DoDequeue (Ptr<QueueDiscDeqData> deqData)
 {
   NS_LOG_FUNCTION (this);
 
   // The deqData object is created in the PifoTreeNode Dequeue method
   Ptr<PifoTreeDeqData> pt_deqData = DynamicCast<PifoTreeDeqData> (deqData);
-  return DoDequeue (pt_deqData.nodeID, pt_deqData.pifoID);
+  return DoDequeue (pt_deqData->nodeID, pt_deqData->pifoID);
 }
 
 Ptr<QueueDiscItem>
@@ -201,7 +203,7 @@ PifoTreeQueueDisc::DoDequeue (uint32_t nodeID, uint8_t pifoID)
 
   // dequeue starting with the specified node and PIFO
   // this call sets item and sched_meta
-  bool ret = m_nodes[nodeID].Dequeue (pifoID, item, sched_meta);
+  bool ret = m_nodes[nodeID]->Dequeue (pifoID, item, sched_meta);
 
   if (ret)
     {
@@ -230,9 +232,9 @@ PifoTreeQueueDisc::CheckConfig (void)
   NS_LOG_FUNCTION (this);
 
   // check config of each node
-  for (int i = 0; i < m_nodes.size (); i++)
+  for (uint32_t i = 0; i < m_nodes.size (); i++)
     {
-      if (!m_nodes[i].CheckConfig ())
+      if (!m_nodes[i]->CheckConfig ())
         {
           NS_LOG_ERROR ("Configuration check failed for node " << i);
           return false;
@@ -296,23 +298,23 @@ PifoTreeQueueDisc::ConfigNodes (Json::Value& jsonRoot, std::string param)
   bool ret;
   for (Json::Value::const_iterator itr = data.begin() ; itr != data.end() ; itr++)
     {
-      nodeID = itr.key ().asInt ();
-      NS_ASSERT_MSG (nodeID < m_nodes.size (), "Invalid node ID " << nodeID << " in JSON file");
+      int nodeID = itr.key ().asInt ();
+      NS_ASSERT_MSG (nodeID < (int) m_nodes.size (), "Invalid node ID " << nodeID << " in JSON file");
       if (param == "enq-logic")
         {
           Json::Value enqJson = (*itr)[0];
           Json::Value enqCommands = (*itr)[1];
-          ret = m_nodes[nodeID].AddEnqLogic (enqJson.asString (), enqCommands.asString ());
+          ret = m_nodes[nodeID]->AddEnqLogic (enqJson.asString (), enqCommands.asString ());
         }
       else if (param == "deq-logic")
         {
           Json::Value deqJson = (*itr)[0];
           Json::Value deqCommands = (*itr)[1];
-          ret = m_nodes[nodeID].AddDeqLogic (deqJson.asString (), deqCommands.asString ());
+          ret = m_nodes[nodeID]->AddDeqLogic (deqJson.asString (), deqCommands.asString ());
         }
       else if (param == "num-pifos")
         {
-          ret = m_nodes[nodeID].AddPifos ((*itr).asInt ());
+          ret = m_nodes[nodeID]->AddPifos ((*itr).asInt ());
         }
       else
         {
@@ -410,18 +412,18 @@ PifoTreeQueueDisc::BuildPifoTree (std::string pifoTreeJson)
     for (Json::Value::const_iterator itr = treeRoot.begin() ; itr != treeRoot.end() ; itr++)
       {
         int parentID = itr.key ().asInt ();
-        NS_ASSERT_MSG (parentID < m_nodes.size (), "Invalid parent ID in PifoTree JSON file");
+        NS_ASSERT_MSG (parentID < (int) m_nodes.size (), "Invalid parent ID in PifoTree JSON file");
         Json::Value children = (*itr);
         // add children
-        for (int i = 0; i < children.size (); i++)
+        for (uint32_t i = 0; i < children.size (); i++)
           {
             int childID = children[i].asInt ();
-            NS_ASSERT_MSG (childID < m_nodes.size (), "Invalid child ID in PifoTree JSON file");
+            NS_ASSERT_MSG (childID < (int) m_nodes.size (), "Invalid child ID in PifoTree JSON file");
             // add child to parent
-            ret = m_nodes[parentID].AddChild (m_nodes[childID]);
+            ret = m_nodes[parentID]->AddChild (m_nodes[childID]);
             NS_ASSERT_MSG (ret, "Failed to add child to node " << parentID);
             // add parent to child
-            ret = m_nodes[childID].AddParent (m_nodes[parentID]);
+            ret = m_nodes[childID]->AddParent (m_nodes[parentID]);
             NS_ASSERT_MSG (ret, "Failed to add parent to node " << childID);
           }
       }

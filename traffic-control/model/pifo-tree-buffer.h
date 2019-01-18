@@ -26,6 +26,7 @@
 #include "ns3/traced-callback.h"
 #include "ns3/queue-item.h"
 #include "ns3/json.h"
+#include "ns3/enq-pipeline.h"
 
 namespace ns3 {
 
@@ -83,9 +84,9 @@ private:
   std::map<uint32_t, std::vector<uint32_t>> m_bufIDMap;
 
   /// Traced callback: fired when a packet is enqueued into a partition
-  TracedCallback<Ptr<const QueueDiscItem>, uint32_t partitionID > m_traceEnqueue;
+  TracedCallback<Ptr<const QueueDiscItem>, uint32_t > m_traceEnqueue;
   /// Traced callback: fired when a packet is dequeued from a partition
-  TracedCallback<Ptr<const QueueDiscItem>, uint32_t partitionID > m_traceDequeue;
+  TracedCallback<Ptr<const QueueDiscItem>, uint32_t > m_traceDequeue;
 
 };
 

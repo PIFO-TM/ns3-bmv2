@@ -44,14 +44,14 @@ typedef struct {
   int64_t timestamp;
   bool is_leaf;
   // pifo metadata
-  bool[MAX_NUM_PIFOS]     pifo_is_empty;
-  int64_t[MAX_NUM_PIFOS]  pifo_last_deq_time;
-  uint8_t[MAX_NUM_PIFOS]  pifo_child_node_id;
-  uint8_t[MAX_NUM_PIFOS]  pifo_child_pifo_id;
-  uint32_t[MAX_NUM_PIFOS] pifo_rank;
-  int64_t[MAX_NUM_PIFOS]  pifo_tx_time;
-  uint32_t[MAX_NUM_PIFOS] pifo_tx_delta;
-  uint32_t[MAX_NUM_PIFOS] pifo_pkt_len;
+  bool     pifo_is_empty[MAX_NUM_PIFOS];
+  int64_t  pifo_last_deq_time[MAX_NUM_PIFOS];
+  uint8_t  pifo_child_node_id[MAX_NUM_PIFOS];
+  uint8_t  pifo_child_pifo_id[MAX_NUM_PIFOS];
+  uint32_t pifo_rank[MAX_NUM_PIFOS];
+  int64_t  pifo_tx_time[MAX_NUM_PIFOS];
+  uint32_t pifo_tx_delta[MAX_NUM_PIFOS];
+  uint32_t pifo_pkt_len[MAX_NUM_PIFOS];
 
   // P4 program outputs
   uint8_t pifo_id;

@@ -34,7 +34,7 @@ NS_OBJECT_ENSURE_REGISTERED (PifoTreeBuffer);
 TypeId PifoTreeBuffer::GetTypeId (void)
 {
   static TypeId tid = TypeId ("ns3::PifoTreeBuffer")
-    .SetParent<QueueDisc> ()
+    .SetParent<Object> ()
     .SetGroupName ("TrafficControl")
     .AddConstructor<PifoTreeBuffer> ()
     // TODO(sibanez): Add trace callback to track enqueues and dequeues into a buffer partition
@@ -78,7 +78,7 @@ PifoTreeBuffer::Configure (Json::Value configRoot)
 
   // initialize the buffers
   Json::Value bufSizes = configRoot["partition-sizes"];
-  for (int i = 0; i < bufSizes.size (); i++)
+  for (uint32_t i = 0; i < bufSizes.size (); i++)
     {
       uint32_t limit = bufSizes[i].asInt ();
       m_partitionLimits.push_back(limit);
@@ -86,18 +86,18 @@ PifoTreeBuffer::Configure (Json::Value configRoot)
     }
 
   // initialize the bufIDMap
-  uint32_t numBufIDs = configRoot["num-bufIDs"].asInt ();
+  int numBufIDs = configRoot["num-bufIDs"].asInt ();
   Json::Value mapConfig = configRoot["bufID-map"];
   for (int i = 0; i < numBufIDs; i++)
     {
       Json::Value partitions = mapConfig[std::to_string(i)];
       // add all partitions that this buffer can access
-      for (int j = 0; j < partitions.size (); j++)
+      for (uint32_t j = 0; j < partitions.size (); j++)
         {
           m_bufIDMap[i].push_back (partitions[j].asInt ());
         }
     }
-
+  return true;
 }
 
 bool
@@ -105,25 +105,25 @@ PifoTreeBuffer::Enqueue (uint32_t bufID, Ptr<QueueDiscItem> item, sched_meta_t& 
 {
   NS_LOG_FUNCTION (this);
 
-  if (!m_bufIDMap.contains[bufID])
+  if (m_bufIDMap.count(bufID) == 0)
     {
       NS_LOG_ERROR ("Attempted to enqueue into invalid buffer ID " << bufID);
       return false;
     }
 
   // check each possible partition in order for space
-  for (int i = 0; i < m_bufIDMap[bufID].size (); i++)
+  for (uint32_t i = 0; i < m_bufIDMap[bufID].size (); i++)
     {
       uint32_t partitionID = m_bufIDMap[bufID][i];
       if (m_partitions[partitionID] + item->GetSize () <= m_partitionLimits[partitionID])
         {
           m_partitions[partitionID] += item->GetSize ();
           // Set buffer related scheduling metadata fields
-          sched_meta.partition_id = i;
+          sched_meta.partition_id = partitionID;
           sched_meta.partition_size = m_partitions[partitionID];
           sched_meta.partition_max_size = m_partitionLimits[partitionID];
           // fire enqueue trace
-          m_traceEnqueue (item, i);
+          m_traceEnqueue (item, partitionID);
           return true;
         }
     }
