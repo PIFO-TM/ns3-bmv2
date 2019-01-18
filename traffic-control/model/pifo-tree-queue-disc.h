@@ -130,6 +130,7 @@ private:
 
   /// JSON file which speicifes the configuration of the Pifo Tree
   std::string m_pifoTreeJson;
+  std::string m_jsonDir;
   /// Store pointers to all PifoTreeNodes
   std::vector<Ptr<PifoTreeNode>> m_nodes;
   /// The packet buffer used to make drop decisions

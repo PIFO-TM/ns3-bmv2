@@ -1,0 +1,26 @@
+{
+    "class-logic" : ["class.json", "class-commands.txt"],
+    "buffer-config" :
+    {
+        "num-bufIDs" : 1,
+        "partition-sizes" : [10000],
+        "bufID-map" :
+        {
+            "0" : [0]
+        }
+    },
+    "num-nodes" : 1,
+    "tree" : {},
+    "num-pifos" :
+    {
+        "0" : 1
+    },
+    "enq-logic" :
+    {
+        "0" : ["enq.json", "enq-commands.txt"]
+    },
+    "deq-logic" :
+    {
+        "0" : ["deq.json", "deq-commands.txt"]
+    }
+}

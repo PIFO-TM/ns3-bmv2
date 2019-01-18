@@ -71,7 +71,7 @@ TypeId PifoTreeQueueDisc::GetTypeId (void)
 
 PifoTreeQueueDisc::PifoTreeQueueDisc ()
   // We won't use any of the standard queue disc queueing infrastructure so the size policy doesn't matter
-  : QueueDisc ()
+  : QueueDisc (), m_pifoTreeJson (""), m_jsonDir ("")
 {
   NS_LOG_FUNCTION (this);
 }
@@ -96,6 +96,9 @@ PifoTreeQueueDisc::SetJsonFile (std::string jsonFile)
 {
   NS_LOG_FUNCTION (this << jsonFile);
   m_pifoTreeJson = jsonFile;
+  // find the path to the jsonFile
+  size_t found = jsonFile.find_last_of ("/");
+  m_jsonDir = jsonFile.substr (0, found);
 }
 
 bool
@@ -231,6 +234,17 @@ PifoTreeQueueDisc::CheckConfig (void)
 {
   NS_LOG_FUNCTION (this);
 
+  // create and initialize the Pifo Tree
+  if (m_pifoTreeJson != "")
+    {
+      BuildPifoTree (m_pifoTreeJson);
+    }
+  else
+    {
+      NS_LOG_ERROR ("PifoTree JSON file has not been configured");
+      return false;
+    }
+
   // check config of each node
   for (uint32_t i = 0; i < m_nodes.size (); i++)
     {
@@ -243,7 +257,7 @@ PifoTreeQueueDisc::CheckConfig (void)
 
   if (GetNQueueDiscClasses () != 0)
     {
-      NS_LOG_ERROR ("PifoTreeQueueDisc needs no queue disc class");
+      NS_LOG_ERROR ("PifoTreeQueueDisc needs no queue disc classes");
       return false;
     }
 
@@ -266,14 +280,6 @@ void
 PifoTreeQueueDisc::InitializeParams (void)
 {
   NS_LOG_FUNCTION (this);
-  NS_LOG_INFO ("Initializing PifoTreeQueueDisc params.");
-
-  // create and initialize the Pifo Tree
-  if (m_pifoTreeJson != "")
-    {
-      BuildPifoTree (m_pifoTreeJson);
-    }
-
 }
 
 void
@@ -281,8 +287,8 @@ PifoTreeQueueDisc::ConfigClassification (Json::Value& classLogic)
 {
   NS_LOG_FUNCTION (this);
 
-  std::string classJson = classLogic[0].asString ();
-  std::string classCmds = classLogic[1].asString ();
+  std::string classJson = m_jsonDir + classLogic[0].asString ();
+  std::string classCmds = m_jsonDir + classLogic[1].asString ();
 
   m_classPipe = new ClassificationP4Pipe (classJson);
   m_classPipe->run_cli (classCmds);
@@ -302,15 +308,15 @@ PifoTreeQueueDisc::ConfigNodes (Json::Value& jsonRoot, std::string param)
       NS_ASSERT_MSG (nodeID < (int) m_nodes.size (), "Invalid node ID " << nodeID << " in JSON file");
       if (param == "enq-logic")
         {
-          Json::Value enqJson = (*itr)[0];
-          Json::Value enqCommands = (*itr)[1];
-          ret = m_nodes[nodeID]->AddEnqLogic (enqJson.asString (), enqCommands.asString ());
+          std::string enqJson = m_jsonDir + (*itr)[0].asString ();
+          std::string enqCommands = m_jsonDir + (*itr)[1].asString ();
+          ret = m_nodes[nodeID]->AddEnqLogic (enqJson, enqCommands);
         }
       else if (param == "deq-logic")
         {
-          Json::Value deqJson = (*itr)[0];
-          Json::Value deqCommands = (*itr)[1];
-          ret = m_nodes[nodeID]->AddDeqLogic (deqJson.asString (), deqCommands.asString ());
+          std::srting deqJson = m_jsonDir + (*itr)[0].asString ();
+          std::srting deqCommands = m_jsonDir + (*itr)[1].asString ();
+          ret = m_nodes[nodeID]->AddDeqLogic (deqJson, deqCommands);
         }
       else if (param == "num-pifos")
         {
@@ -329,6 +335,7 @@ void
 PifoTreeQueueDisc::BuildPifoTree (std::string pifoTreeJson)
 {
   NS_LOG_FUNCTION (this << pifoTreeJson);
+  NS_LOG_INFO ("Building PifoTree from JSON config file");
 
   /*
    Sample PIFO tree JSON file:
