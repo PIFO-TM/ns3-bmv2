@@ -118,8 +118,8 @@ PifoTreeQueueDiscTestCase::DoRun (void)
   // create PifoTreeQueueDisc
   qdisc = CreateObject<PifoTreeQueueDisc> ();
 
-  // configure with JSON file (1 node, 1 PIFO, enq logic computes rank=10)
-  NS_TEST_EXPECT_MSG_EQ (qdisc->SetAttributeFailSafe ("JsonFile", StringValue ("/home/sibanez/tools/bake/source/ns-3.29/src/traffic-control/test/p4-src/test1/pifo-tree.json")), true,
+  // configure with PifoTree JSON file 
+  NS_TEST_EXPECT_MSG_EQ (qdisc->SetAttributeFailSafe ("JsonFile", StringValue ("/home/sibanez/tools/bake/source/ns-3.29/src/traffic-control/test/p4-src/test2/pifo-tree.json")), true,
                          "Verify that we can actually set the JsonFile attribute");
   int rank = 10;
 
@@ -128,16 +128,14 @@ PifoTreeQueueDiscTestCase::DoRun (void)
   /*
    * Test 1: enqueue one packet
    */
-  NS_TEST_EXPECT_MSG_EQ (qdisc->GetNPackets (),
-                         0, "There should be no packets in the queue disc");
+  NS_TEST_EXPECT_MSG_EQ (qdisc->GetNPackets (), 0, "There should be no packets in the queue disc");
 
   item = Create<PifoTreeQueueDiscTestItem> (Create<Packet> (100), dest);
   // insert pkt
   qdisc->Enqueue (item);
   uid_pifo.emplace(item->GetPacket ()->GetUid (), rank);
 
-  NS_TEST_EXPECT_MSG_EQ (qdisc->GetNPackets (),
-                         1, "There should be one packet in the queue disc");
+  NS_TEST_EXPECT_MSG_EQ (qdisc->GetNPackets (), 1, "There should be one packet in the queue disc");
 
   /*
    * Test 2: dequeue packets 

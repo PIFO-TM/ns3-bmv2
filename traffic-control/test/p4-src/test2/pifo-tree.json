@@ -1,0 +1,36 @@
+{
+    "class-logic" : ["classification/class.json", "classification/class-commands.txt"],
+    "buffer-config" :
+    {
+        "num-bufIDs" : 2,
+        "partition-sizes" : [10000, 10000],
+        "bufID-map" :
+        {
+            "0" : [0],
+            "1" : [1]
+        }
+    },
+    "num-nodes" : 3,
+    "tree" :
+    {
+        "0" : [1, 2]
+    },
+    "num-pifos" :
+    {
+        "0" : 1,
+        "1" : 1,
+        "2" : 1
+    },
+    "enq-logic" :
+    {
+        "0" : ["node0/enq.json", "node0/enq-commands.txt"],
+        "1" : ["node1/enq.json", "node1/enq-commands.txt"],
+        "2" : ["node2/enq.json", "node2/enq-commands.txt"]
+    },
+    "deq-logic" :
+    {
+        "0" : ["node0/deq.json", "node0/deq-commands.txt"],
+        "1" : ["node1/deq.json", "node1/deq-commands.txt"],
+        "2" : ["node2/deq.json", "node2/deq-commands.txt"]
+    }
+}
