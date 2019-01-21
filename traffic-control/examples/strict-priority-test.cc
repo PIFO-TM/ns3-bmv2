@@ -57,31 +57,29 @@ NodeContainer sinks;
 NodeContainer routers;
 QueueDiscContainer queueDiscs;
 
-std::vector<int> flowRates = {50, 100, 200, 400, 600}; // Kbps
-//std::vector<int> flowRates = {2, 10}; // Mbps
-//std::vector<int> flowRates = {1, 6}; // Mbps
-std::string qdiscSelection = "";
+std::vector<int> flowRates = {5, 5, 5}; // Mbps
 std::string pathOut = ".";
 std::string jsonFile = "";
-std::string commandsFile = "";
-uint32_t qSizeBits = 31;
-int numApps = 50;
-std::string timeReference = "6ms";
+uint32_t numPartitions = 3;
+int numApps = 3;
 std::string bnLinkDataRate = "10Mbps";
 std::string bnLinkDelay = "20ms";
 std::string defaultDataRate = "100Mbps";
 std::string defaultDelay = "2ms";
-std::string maxQueueSize = "600KB";
-double maxQueueBytes = 600000.0; // used to convert P4 EWMA samples
-uint32_t meanPktSize = 1000;
-double qW = 0.002;
+//uint32_t meanPktSize = 1000;
+uint32_t meanPktSize = 64;
 
 AsciiTraceHelper asciiTraceHelper;
 Ptr<OutputStreamWrapper> txRateStream;
 Ptr<OutputStreamWrapper> rxRateStream;
 
+// to track the number of bytes transmitted and received by each app
 std::vector<int> txBytes;
 std::vector<int> rxBytes;
+
+// to track the occupancy of each partition
+std::vector<uint32_t> partitions; 
+std::vector<Ptr<OutputStreamWrapper>> qsizeStreams;
 
 void InitGlobals ()
 {
@@ -94,6 +92,13 @@ void InitGlobals ()
     {
       txBytes.push_back (0);
       rxBytes.push_back (0);
+    }
+
+  for (uint32_t i = 0; i < numPartitions; i++)
+    {
+      partitions.push_back (0);
+      Ptr<OutputStreamWrapper> stream = asciiTraceHelper.CreateFileStream (pathOut + "/queue-" + std::to_string(i) +"-size.plotme");
+      qsizeStreams.push_back (stream);
     }
 
   txRateStream = asciiTraceHelper.CreateFileStream (pathOut + "/avg-tx-rates.plotme");
@@ -127,9 +132,23 @@ WriteStats ()
 // The trace sink call back functions
 //
 void
-InstQueueSizeTrace (Ptr<OutputStreamWrapper> stream, uint32_t oldValue, uint32_t newValue)
+BufferEnqueueTrace (Ptr<const QueueDiscItem> item, uint32_t partitionID)
 {
-  *stream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << newValue << std::endl;
+  NS_ASSERT_MSG (partitionID < numPartitions, "Invalid partitionID? Does the PifoTreeJson agree with numPartitions in this test script?");
+  // update the buffer partition size
+  partitions[partitionID] += item->GetSize ();
+  Ptr<OutputStreamWrapper> stream = qsizeStreams[partitionID];
+  *stream->GetStream () << Simulator::Now ().GetSeconds () << " " << partitions[partitionID] << std::endl;
+}
+
+void
+BufferDequeueTrace (Ptr<const QueueDiscItem> item, uint32_t partitionID)
+{
+  NS_ASSERT_MSG (partitionID < numPartitions, "Invalid partitionID? Does the PifoTreeJson agree with numPartitions in this test script?");
+  // update the buffer partition size
+  partitions[partitionID] -= item->GetSize ();
+  Ptr<OutputStreamWrapper> stream = qsizeStreams[partitionID];
+  *stream->GetStream () << Simulator::Now ().GetSeconds () << " " << partitions[partitionID] << std::endl;
 }
 
 void
@@ -158,33 +177,18 @@ RxTrace (Ptr<OutputStreamWrapper> stream, int appId, Ptr<const Packet> pkt, cons
 // Configure qdisc parameters
 //
 void
-configQdisc (std::string qdiscSelection, TrafficControlHelper &tchQdisc)
+configQdisc (TrafficControlHelper &tchQdisc)
 {
-  if (qdiscSelection == "p4")
+  if (jsonFile == "")
     {
-      if (jsonFile == "" || commandsFile == "")
-        {
-          NS_LOG_ERROR("Using P4 queue disc, but JSON file or commands file is unconfigured");
-        }
-
-      // P4 queue disc params
-      NS_LOG_INFO("Set P4 queue disc params");
-      Config::SetDefault ("ns3::P4QueueDisc::MaxSize", StringValue (maxQueueSize));
-      Config::SetDefault ("ns3::P4QueueDisc::JsonFile", StringValue (jsonFile));
-      Config::SetDefault ("ns3::P4QueueDisc::CommandsFile", StringValue (commandsFile));
-      Config::SetDefault ("ns3::P4QueueDisc::QueueSizeBits", UintegerValue (qSizeBits));
-      Config::SetDefault ("ns3::P4QueueDisc::QW", DoubleValue (qW));
-      Config::SetDefault ("ns3::P4QueueDisc::MeanPktSize", UintegerValue (meanPktSize));
-      Config::SetDefault ("ns3::P4QueueDisc::LinkBandwidth", StringValue (bnLinkDataRate));
-      Config::SetDefault ("ns3::P4QueueDisc::LinkDelay", StringValue (bnLinkDelay));
-      Config::SetDefault ("ns3::P4QueueDisc::TimeReference", TimeValue (Time (timeReference)));
-
-      tchQdisc.SetRootQueueDisc ("ns3::P4QueueDisc");
+      NS_LOG_ERROR("PifoTreeJSON file has not been configured");
     }
-  else
-    {
-      NS_LOG_ERROR("Unrecognized qdisc selection: " << qdiscSelection);
-    }
+
+  // P4 queue disc params
+  NS_LOG_INFO("Set PifoTree queue disc params");
+  Config::SetDefault ("ns3::PifoTreeQueueDisc::JsonFile", StringValue (jsonFile));
+
+  tchQdisc.SetRootQueueDisc ("ns3::PifoTreeQueueDisc");
 }
 
 //
@@ -205,7 +209,7 @@ SetupTopo ()
   internet.Install (routers);
 
   TrafficControlHelper tchQdisc;
-  configQdisc(qdiscSelection, tchQdisc);
+  configQdisc(tchQdisc);
 
   TrafficControlHelper tchPfifo;
   uint16_t handle = tchPfifo.SetRootQueueDisc ("ns3::PfifoFastQueueDisc");
@@ -259,7 +263,7 @@ SetupTopo ()
       ipv4.Assign (srcDevs[i]);
     }
 
-  // Assign IP addresses for sources <--> r0
+  // Assign IP addresses for sinks <--> r1
   for (int i = 0; i < numApps; i++)
     {
       std::string base = "10.2." + std::to_string(i+1) + ".0";
@@ -286,8 +290,7 @@ SetupApps ()
   for (int i = 0; i < numApps; i++)
     {
       // compute rate for this app
-      sendRate = std::to_string(flowRates[i/10]) + "Kbps";
-//      sendRate = std::to_string(flowRates[i/2]) + "Mbps";
+      sendRate = std::to_string(flowRates[i]) + "Mbps";
       // Install Sources
       dstAddrStr = "10.2." + std::to_string (i+1) + ".1";
       dstAddr = Address (InetSocketAddress (Ipv4Address (dstAddrStr.c_str()), port));
@@ -311,18 +314,23 @@ SetupApps ()
 void
 ConfigTracing ()
 {
+//  Ptr<PifoTreeQueueDisc> qdisc = DynamicCast<PifoTreeQueueDisc>(queueDiscs.Get (0));
+//  Ptr<PifoTreeBuffer> buffer = qdisc->GetBuffer ();
+
+//  Ptr<QueueDisc> qdisc = queueDiscs.Get (0);
+//  Ptr<PifoTreeBuffer> buffer = qdisc->GetObject<PifoTreeBuffer> ();
+
   Ptr<QueueDisc> qdisc = queueDiscs.Get (0);
   //
   // Configure tracing of the Instantaneous queue size
   //
-  Ptr<OutputStreamWrapper> qsizeStream = asciiTraceHelper.CreateFileStream (pathOut +"/inst-qsize.plotme");
-  qdisc->TraceConnectWithoutContext ("BytesInQueue", MakeBoundCallback (&InstQueueSizeTrace, qsizeStream));
+  qdisc->TraceConnectWithoutContext ("BufferEnqueue", MakeCallback (&BufferEnqueueTrace));
+  qdisc->TraceConnectWithoutContext ("BufferDequeue", MakeCallback (&BufferDequeueTrace));
   //
   // Configure tracing of packet drops
   //
   Ptr<OutputStreamWrapper> dropStream = asciiTraceHelper.CreateFileStream (pathOut + "/drop-times.plotme");
   qdisc->TraceConnectWithoutContext ("Drop", MakeBoundCallback (&TcDropTrace, dropStream));
-
   //
   // Configure tracing of traffic sources
   //
@@ -356,10 +364,8 @@ main (int argc, char *argv[])
 
   // Configuration and command line parameter parsing
   CommandLine cmd;
-  cmd.AddValue ("qdisc", "Which qdisc implementation to run: red, p4", qdiscSelection);
   cmd.AddValue ("pathOut", "Path to save results from --writeForPlot/--writePcap/--writeFlowMonitor", pathOut);
   cmd.AddValue ("jsonFile", "Path to the desired bmv2 JSON file", jsonFile);
-  cmd.AddValue ("commandsFile", "Path to the desired bmv2 CLI commands file", commandsFile);
   cmd.AddValue ("numApps", "Number of CBR sources/sinks to use", numApps);
   cmd.AddValue ("writeAppBytes", "Write the tx/rx bytes for each app", writeAppBytes);
   cmd.AddValue ("duration", "Write the tx/rx bytes for each app", global_stop_time);
@@ -392,7 +398,7 @@ main (int argc, char *argv[])
   if (printStats)
     {
       QueueDisc::Stats st = queueDiscs.Get (0)->GetStats ();
-      std::cout << "*** " << qdiscSelection << " stats from P4 queue disc ***" << std::endl;
+      std::cout << "*** Stats from PifoTree queue disc ***" << std::endl;
       std::cout << st << std::endl;
     }
 

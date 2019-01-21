@@ -4,6 +4,7 @@
 #include "dummy_blocks.p4"
 
 #define HASH_TABLE_SIZE 1024
+#define L2_HASH_TABLE_SIZE 10
 
 typedef bit<32> index_t;
 typedef bit<32> uint_t;
@@ -37,7 +38,7 @@ control ClassificationLogic(inout headers hdr,
         classification_debug.apply();
 
         // Check if this flow is already active
-        index = (index_t)standard_metadata.flow_hash;
+        index = (index_t)(standard_metadata.flow_hash[L2_HASH_TABLE_SIZE-1:0]);
         @atomic {
             active_flows_reg.read(is_active, index);
             active_flows_reg.write(index, 1);

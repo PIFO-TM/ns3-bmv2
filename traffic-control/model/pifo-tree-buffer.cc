@@ -37,13 +37,7 @@ TypeId PifoTreeBuffer::GetTypeId (void)
     .SetParent<Object> ()
     .SetGroupName ("TrafficControl")
     .AddConstructor<PifoTreeBuffer> ()
-    // TODO(sibanez): Add trace callback to track enqueues and dequeues into a buffer partition
-    .AddTraceSource ("Enqueue", "Enqueue a packet into a buffer partition",
-                     MakeTraceSourceAccessor (&PifoTreeBuffer::m_traceEnqueue),
-                     "ns3::QueueDiscItem::TracedCallback")
-    .AddTraceSource ("Dequeue", "Dequeue a packet from a buffer partition",
-                     MakeTraceSourceAccessor (&PifoTreeBuffer::m_traceDequeue),
-                     "ns3::QueueDiscItem::TracedCallback")
+    // TODO(sibanez): Need to add any trace sources here?
   ;
   return tid;
 }
@@ -119,13 +113,12 @@ PifoTreeBuffer::Enqueue (uint32_t bufID, Ptr<QueueDiscItem> item, sched_meta_t& 
       uint32_t partitionID = m_bufIDMap[bufID][i];
       if (m_partitions[partitionID] + item->GetSize () <= m_partitionLimits[partitionID])
         {
+          NS_LOG_LOGIC ("Enqueuing pkt of size " << item->GetSize () << " bytes into partition " << partitionID);
           m_partitions[partitionID] += item->GetSize ();
           // Set buffer related scheduling metadata fields
           sched_meta.partition_id = partitionID;
           sched_meta.partition_size = m_partitions[partitionID];
           sched_meta.partition_max_size = m_partitionLimits[partitionID];
-          // fire enqueue trace
-          m_traceEnqueue (item, partitionID);
           return true;
         }
     }
@@ -151,9 +144,8 @@ PifoTreeBuffer::Dequeue (uint32_t partitionID, Ptr<QueueDiscItem> item)
       return false;
     }
 
+  NS_LOG_LOGIC ("Dequeuing pkt of size " << item->GetSize () << " bytes from partition " << partitionID);
   m_partitions[partitionID] -= item->GetSize ();
-  // fire dequeue trace
-  m_traceDequeue (item, partitionID);
   return true;
 }
 

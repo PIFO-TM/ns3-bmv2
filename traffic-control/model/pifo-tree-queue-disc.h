@@ -47,11 +47,15 @@ public:
   static TypeId GetTypeId (void);
   /**
    * \brief PifoTreeQueueDisc constructor
-   *
    */
   PifoTreeQueueDisc ();
 
   virtual ~PifoTreeQueueDisc();
+
+  /**
+   * \brief Return a pointer to the buffer attached to this PifoTreeQueueDisc
+   */
+  Ptr<PifoTreeBuffer> GetBuffer (void);
 
   // Reasons for dropping packets
   // TODO(sibanez): list drop reasons
@@ -91,11 +95,6 @@ private:
   void ConfigClassification (Json::Value& classLogic);
 
   /**
-   * \brief Configure buffer sizes
-   */
-  void ConfigBuffers (Json::Value& bufferSizes);
-
-  /**
    * \brief Configure each PIFO tree node
    */
   void ConfigNodes (Json::Value& jsonRoot, std::string param);
@@ -104,14 +103,6 @@ private:
    * \brief Build and configure the PIFO tree queue disc from the provided JSON file
    */
   void BuildPifoTree (std::string pifoTreeJson);
-
-  /**
-   * \brief Attempt to enqueue the queue disc item into the specified buffer
-   * \param bufID ID of the buffer to enqueue into
-   * \param item ptr to the queue disc item being enqueued
-   * \returns bool indicating whether or not enqueue operation was successful
-   */
-   bool EnqueueBuffer (uint32_t bufID, Ptr<QueueDiscItem> item);
 
   /**
    * \brief Enqueue into the specified leaf node.
@@ -134,12 +125,17 @@ private:
   /// Store pointers to all PifoTreeNodes
   std::vector<Ptr<PifoTreeNode>> m_nodes;
   /// The packet buffer used to make drop decisions
-  PifoTreeBuffer m_buffer;
+  Ptr<PifoTreeBuffer> m_buffer;
 
   TracedValue<uint32_t> m_p4ClassVar1; //!< 1st traced P4 classification variable
   TracedValue<uint32_t> m_p4ClassVar2; //!< 2nd traced P4 classification variable
   TracedValue<uint32_t> m_p4ClassVar3; //!< 3rd traced P4 classification variable
   TracedValue<uint32_t> m_p4ClassVar4; //!< 4th traced P4 classification variable
+
+  /// Traced callback: fired when a packet is enqueued into a partition
+  TracedCallback<Ptr<const QueueDiscItem>, uint32_t > m_traceBufferEnqueue;
+  /// Traced callback: fired when a packet is dequeued from a partition
+  TracedCallback<Ptr<const QueueDiscItem>, uint32_t > m_traceBufferDequeue;
 
 };
 

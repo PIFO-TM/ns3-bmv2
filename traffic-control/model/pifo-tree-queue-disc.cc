@@ -66,6 +66,12 @@ TypeId PifoTreeQueueDisc::GetTypeId (void)
                      "4th traced P4 classification variable",
                      MakeTraceSourceAccessor (&PifoTreeQueueDisc::m_p4ClassVar4),
                      "ns3::TracedValueCallback::Uint32")
+    .AddTraceSource ("BufferEnqueue", "A packet was enqueued into a buffer partition",
+                     MakeTraceSourceAccessor (&PifoTreeQueueDisc::m_traceBufferEnqueue),
+                     "ns3::QueueDiscItem::TracedCallback")
+    .AddTraceSource ("BufferDequeue", "A packet was dequeued from a buffer partition",
+                     MakeTraceSourceAccessor (&PifoTreeQueueDisc::m_traceBufferDequeue),
+                     "ns3::QueueDiscItem::TracedCallback")
   ;
   return tid;
 }
@@ -83,6 +89,13 @@ PifoTreeQueueDisc::~PifoTreeQueueDisc ()
 
   if (m_classPipe)
       delete m_classPipe;
+}
+
+Ptr<PifoTreeBuffer>
+PifoTreeQueueDisc::GetBuffer (void)
+{
+  NS_LOG_FUNCTION (this);
+  return m_buffer;
 }
 
 std::string
@@ -136,14 +149,17 @@ PifoTreeQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
   sched_meta.partition_id = 0;
   sched_meta.partition_size = 0;
   sched_meta.partition_max_size = 0;
-  if (!m_buffer.Enqueue(std_class_meta.buffer_id, item, sched_meta))
+  if (!m_buffer->Enqueue(std_class_meta.buffer_id, item, sched_meta))
     {
       NS_LOG_LOGIC ("Buffer " << std_class_meta.buffer_id << " is full -- dropping packet");
       DropBeforeEnqueue (item, LIMIT_EXCEEDED_DROP);
       return false;
     }
 
-  // buffer enqueue was successful so enqueue into the specified leaf node
+  // buffer enqueue was successful, fire BufferEnqueue trace
+  m_traceBufferEnqueue (item, sched_meta.partition_id);
+
+  // Enqueue into the specified leaf node
   // This operation will fail if provided leaf ID is invalid
   bool retval = EnqueueLeaf (std_class_meta.leaf_id, item, sched_meta);
   if (!retval)
@@ -211,8 +227,12 @@ PifoTreeQueueDisc::DoDequeue (uint32_t nodeID, uint8_t pifoID)
 
   if (ret)
     {
+      // TODO(sibanez): check for failed buffer dequeue here?
       // dequeue from the appropriate buffer partition
-      m_buffer.Dequeue (sched_meta.partition_id, item);
+      m_buffer->Dequeue (sched_meta.partition_id, item);
+
+      // fire the BufferDequeue trace
+      m_traceBufferDequeue (item, sched_meta.partition_id);
 
       // NOTE: must invoke PacketDequeued explicitly here because we are not using any NS3 internal queues
       PacketDequeued (item);
@@ -398,7 +418,9 @@ PifoTreeQueueDisc::BuildPifoTree (std::string pifoTreeJson)
     ConfigClassification (jsonRoot["class-logic"]);
 
     // configure buffer
-    m_buffer.Configure(jsonRoot["buffer-config"]);
+    m_buffer = CreateObject<PifoTreeBuffer> ();
+    AggregateObject (m_buffer);
+    m_buffer->Configure(jsonRoot["buffer-config"]);
 
     // allocate nodes into std::vector
     for (int i = 0; i < jsonRoot["num-nodes"].asInt(); i++)

@@ -3,7 +3,7 @@
     "buffer-config" :
     {
         "num-bufIDs" : 3,
-        "partition-sizes" : [10000, 10000, 10000],
+        "partition-sizes" : [32000, 32000, 32000],
         "bufID-map" :
         {
             "0" : [0],

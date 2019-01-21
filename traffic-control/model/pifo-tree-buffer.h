@@ -83,11 +83,6 @@ private:
   /// Map a buffer ID to list of partition indicies, each index is checked in order for space
   std::map<uint32_t, std::vector<uint32_t>> m_bufIDMap;
 
-  /// Traced callback: fired when a packet is enqueued into a partition
-  TracedCallback<Ptr<const QueueDiscItem>, uint32_t > m_traceEnqueue;
-  /// Traced callback: fired when a packet is dequeued from a partition
-  TracedCallback<Ptr<const QueueDiscItem>, uint32_t > m_traceDequeue;
-
 };
 
 } // namespace ns3
