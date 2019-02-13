@@ -51,11 +51,20 @@ typedef struct {
  */
 typedef struct {
   // scheduling/shaping metadata
+  bool enq_trigger;
   sched_meta_t sched_meta;
   int64_t timestamp;
   bool is_leaf;
   uint8_t child_node_id;
   uint8_t child_pifo_id;
+  // dequeue event metadata
+  bool deq_trigger;
+  uint8_t deq_node_id;
+  uint8_t deq_pifo_id;
+  uint32_t deq_rank;
+  int64_t deq_tx_time;
+  uint32_t deq_tx_delta;
+  sched_meta_t deq_sched_meta;
   // P4 program outputs
   uint32_t rank;
   uint8_t pifo_id;

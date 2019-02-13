@@ -32,6 +32,7 @@ struct standard_metadata_t {
     //
     // Inputs
     //
+    bit<1> enq_trigger;
     // scheduling metadata
     bit<32> pkt_len;
     bit<32> flow_hash;
@@ -41,9 +42,22 @@ struct standard_metadata_t {
     bit<32> partition_max_size;
     // Additional metadata
     bit<64> timestamp;
-    bool is_leaf;
+    bit<1> is_leaf;
     bit<8> child_node_id;
     bit<8> child_pifo_id;
+    // dequeue event metadata
+    bit<1> deq_trigger;
+    bit<8> deq_node_id;
+    bit<8> deq_pifo_id;
+    bit<32> deq_rank;
+    bit<64> deq_tx_time;
+    bit<32> deq_tx_delta;
+    bit<32> deq_pkt_len;
+    bit<32> deq_flow_hash;
+    bit<32> deq_buffer_id;
+    bit<32> deq_partition_id;
+    bit<32> deq_partition_size;
+    bit<32> deq_partition_max_size;
     //
     // Outputs
     //

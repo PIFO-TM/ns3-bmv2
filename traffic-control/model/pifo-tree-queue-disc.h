@@ -58,9 +58,8 @@ public:
   Ptr<PifoTreeBuffer> GetBuffer (void);
 
   // Reasons for dropping packets
-  // TODO(sibanez): list drop reasons
-  static constexpr const char* LIMIT_EXCEEDED_DROP = "Buffer limit exceeded";
-  static constexpr const char* PIFO_TREE_DROP = "Failed to enqueue into PifoTree (should not happen)";
+  static constexpr const char* BUFFER_DROP = "Buffer drop";
+  static constexpr const char* PIFO_TREE_DROP = "Pifo Tree drop (should not happen)";
 
 private:
   virtual bool DoEnqueue (Ptr<QueueDiscItem> item);
@@ -136,6 +135,9 @@ private:
   TracedCallback<Ptr<const QueueDiscItem>, uint32_t > m_traceBufferEnqueue;
   /// Traced callback: fired when a packet is dequeued from a partition
   TracedCallback<Ptr<const QueueDiscItem>, uint32_t > m_traceBufferDequeue;
+
+  /// Traced callback: fired when a packet is dropped by the buffer 
+  TracedCallback<Ptr<const QueueDiscItem>, uint32_t> m_traceBufferDrop;
 
 };
 

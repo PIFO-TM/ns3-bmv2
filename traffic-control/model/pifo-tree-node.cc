@@ -274,6 +274,7 @@ PifoTreeNode::GetGlobalID (void)
 void
 PifoTreeNode::InitEnqMeta (std_enq_meta_t& std_enq_meta)
 {
+  std_enq_meta.enq_trigger = false;
   std_enq_meta.sched_meta.pkt_len = 0;
   std_enq_meta.sched_meta.flow_hash = 0;
   std_enq_meta.sched_meta.buffer_id = 0;
@@ -284,6 +285,19 @@ PifoTreeNode::InitEnqMeta (std_enq_meta_t& std_enq_meta)
   std_enq_meta.is_leaf = m_isLeaf;
   std_enq_meta.child_node_id = 0;
   std_enq_meta.child_pifo_id = 0;
+  // dequeue event metadata
+  std_enq_meta.deq_trigger = false;
+  std_enq_meta.deq_node_id = 0;
+  std_enq_meta.deq_pifo_id = 0;
+  std_enq_meta.deq_rank = 0;
+  std_enq_meta.deq_tx_time = 0;
+  std_enq_meta.deq_tx_delta = 0;
+  std_enq_meta.deq_sched_meta.pkt_len = 0;
+  std_enq_meta.deq_sched_meta.flow_hash = 0;
+  std_enq_meta.deq_sched_meta.buffer_id = 0;
+  std_enq_meta.deq_sched_meta.partition_id = 0;
+  std_enq_meta.deq_sched_meta.partition_size = 0;
+  std_enq_meta.deq_sched_meta.partition_max_size = 0;
   // outputs
   std_enq_meta.rank = 0;
   std_enq_meta.pifo_id = 0;
@@ -345,6 +359,7 @@ PifoTreeNode::EnqueueLeaf (Ptr<QueueDiscItem> item, sched_meta_t sched_meta)
   // allocate and initialize std_enq_meta
   std_enq_meta_t std_enq_meta;
   InitEnqMeta (std_enq_meta);
+  std_enq_meta.enq_trigger = true;
   std_enq_meta.sched_meta = sched_meta;
   std_enq_meta.child_node_id = 0;
   std_enq_meta.child_pifo_id = 0;
@@ -394,6 +409,7 @@ PifoTreeNode::EnqueueNonLeaf (uint32_t child_node_gid, uint8_t child_pifo_id, sc
   // allocate and initialize std_enq_meta
   std_enq_meta_t std_enq_meta;
   InitEnqMeta (std_enq_meta);
+  std_enq_meta.enq_trigger = true;
   std_enq_meta.sched_meta = sched_meta;
   std_enq_meta.child_node_id = GetLocalID (child_node_gid);
   std_enq_meta.child_pifo_id = child_pifo_id;
@@ -525,12 +541,39 @@ PifoTreeNode::DequeuePifo (uint8_t pifo_id, Ptr<QueueDiscItem>& item, sched_meta
   if (!m_pifos[pifo_id].empty ())
     {
       // dequeue from the specified PIFO
+      item = m_pifos[pifo_id].top ().item;
       uint8_t child_node_id = m_pifos[pifo_id].top ().node_id;
       uint8_t child_pifo_id = m_pifos[pifo_id].top ().pifo_id;
-      item = m_pifos[pifo_id].top ().item;
+      uint32_t rank = m_pifos[pifo_id].top ().rank;
+      int64_t tx_time = m_pifos[pifo_id].top ().tx_time;
+      uint32_t tx_delta = m_pifos[pifo_id].top ().tx_delta;
       sched_meta = m_pifos[pifo_id].top ().sched_meta;
       m_pifos[pifo_id].dequeue();
       m_nPackets--;
+
+      // TODO(sibanez): implement dequeue rate limiting
+      // TODO(sibanez): dequeue events are always enabled. Do we want to parameterize this?
+
+      // trigger dequeue event on the enqueue pipeline
+      std_enq_meta_t std_enq_meta;
+      InitEnqMeta (std_enq_meta);
+      std_enq_meta.deq_trigger = true;
+      std_enq_meta.deq_node_id = child_node_id;
+      std_enq_meta.deq_pifo_id = child_pifo_id;
+      std_enq_meta.deq_rank = rank;
+      std_enq_meta.deq_tx_time = tx_time;
+      std_enq_meta.deq_tx_delta = tx_delta;
+      std_enq_meta.deq_sched_meta = sched_meta;
+
+      // perform enqueue P4 processing
+      m_enqPipe->process_pipeline (std_enq_meta);
+    
+      // update trace variables
+      m_enqP4Var1 = std_enq_meta.trace_var1;
+      m_enqP4Var2 = std_enq_meta.trace_var2;
+      m_enqP4Var3 = std_enq_meta.trace_var3;
+      m_enqP4Var4 = std_enq_meta.trace_var4;
+
       // TODO(sibanez): at the moment, this will immediately invoke dequeue on the appropriate child PIFO, but we may eventually want to use dequeue logic at non-root nodes as well.
       if (!m_isLeaf)
         {

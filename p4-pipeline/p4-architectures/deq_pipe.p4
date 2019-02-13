@@ -33,9 +33,9 @@ struct standard_metadata_t {
     // Inputs
     //
     bit<64> timestamp;
-    bool is_leaf;
+    bit<1> is_leaf;
     // PIFO 0 metadata
-    bool    pifo0_is_empty;
+    bit<1>    pifo0_is_empty;
     bit<64> pifo0_last_deq_time;
     bit<8>  pifo0_child_node_id;
     bit<8>  pifo0_child_pifo_id;
@@ -44,7 +44,7 @@ struct standard_metadata_t {
     bit<32> pifo0_tx_delta;
     bit<32> pifo0_pkt_len;
     // PIFO 1 metadata
-    bool    pifo1_is_empty;
+    bit<1>    pifo1_is_empty;
     bit<64> pifo1_last_deq_time;
     bit<8>  pifo1_child_node_id;
     bit<8>  pifo1_child_pifo_id;
@@ -53,7 +53,7 @@ struct standard_metadata_t {
     bit<32> pifo1_tx_delta;
     bit<32> pifo1_pkt_len;
     // PIFO 2 metadata
-    bool    pifo2_is_empty;
+    bit<1>    pifo2_is_empty;
     bit<64> pifo2_last_deq_time;
     bit<8>  pifo2_child_node_id;
     bit<8>  pifo2_child_pifo_id;

@@ -72,6 +72,9 @@ TypeId PifoTreeQueueDisc::GetTypeId (void)
     .AddTraceSource ("BufferDequeue", "A packet was dequeued from a buffer partition",
                      MakeTraceSourceAccessor (&PifoTreeQueueDisc::m_traceBufferDequeue),
                      "ns3::QueueDiscItem::TracedCallback")
+    .AddTraceSource ("BufferDrop", "A packet was dropped by the packet buffer",
+                     MakeTraceSourceAccessor (&PifoTreeQueueDisc::m_traceBufferDrop),
+                     "ns3::QueueDiscItem::TracedCallback")
   ;
   return tid;
 }
@@ -109,10 +112,15 @@ void
 PifoTreeQueueDisc::SetJsonFile (std::string jsonFile)
 {
   NS_LOG_FUNCTION (this << jsonFile);
+  NS_ASSERT_MSG (m_pifoTreeJson == "", "PifoTree JSON file has already been configured");
   m_pifoTreeJson = jsonFile;
   // find the path to the jsonFile
   size_t found = jsonFile.find_last_of ("/");
   m_jsonDir = jsonFile.substr (0, found);
+  // Build/Configure the PifoTree
+  // NOTE: building the tree here rather than in CheckConfig because we want to construct
+  // the nodes and buffer early so that we can connect trace sinks to them
+  BuildPifoTree (m_pifoTreeJson);
 }
 
 bool
@@ -152,7 +160,8 @@ PifoTreeQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
   if (!m_buffer->Enqueue(std_class_meta.buffer_id, item, sched_meta))
     {
       NS_LOG_LOGIC ("Buffer " << std_class_meta.buffer_id << " is full -- dropping packet");
-      DropBeforeEnqueue (item, LIMIT_EXCEEDED_DROP);
+      DropBeforeEnqueue (item, BUFFER_DROP);
+      m_traceBufferDrop (item, std_class_meta.buffer_id);
       return false;
     }
 
@@ -254,17 +263,6 @@ bool
 PifoTreeQueueDisc::CheckConfig (void)
 {
   NS_LOG_FUNCTION (this);
-
-  // create and initialize the Pifo Tree
-  if (m_pifoTreeJson != "")
-    {
-      BuildPifoTree (m_pifoTreeJson);
-    }
-  else
-    {
-      NS_LOG_ERROR ("PifoTree JSON file has not been configured");
-      return false;
-    }
 
   // check config of each node
   for (uint32_t i = 0; i < m_nodes.size (); i++)
@@ -398,6 +396,7 @@ PifoTreeQueueDisc::BuildPifoTree (std::string pifoTreeJson)
         "1" : ["/path/to/deq-logic.json", "/path/to/deq-commands.txt"],
         "2" : ["/path/to/deq-logic.json", "/path/to/deq-commands.txt"]
     }
+
 }
    */
 

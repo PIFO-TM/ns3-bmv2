@@ -44,6 +44,7 @@ namespace ns3 {
 EnqP4Pipe::EnqP4Pipe (std::string jsonFile)
 {
   // Required fields
+  add_required_field("standard_metadata", "enq_trigger");
   add_required_field("standard_metadata", "pkt_len");
   add_required_field("standard_metadata", "flow_hash");
   add_required_field("standard_metadata", "buffer_id");
@@ -54,6 +55,19 @@ EnqP4Pipe::EnqP4Pipe (std::string jsonFile)
   add_required_field("standard_metadata", "is_leaf");
   add_required_field("standard_metadata", "child_node_id");
   add_required_field("standard_metadata", "child_pifo_id");
+  // dequeue event metadata
+  add_required_field("standard_metadata", "deq_trigger");
+  add_required_field("standard_metadata", "deq_node_id");
+  add_required_field("standard_metadata", "deq_pifo_id");
+  add_required_field("standard_metadata", "deq_rank");
+  add_required_field("standard_metadata", "deq_tx_time");
+  add_required_field("standard_metadata", "deq_tx_delta");
+  add_required_field("standard_metadata", "deq_pkt_len");
+  add_required_field("standard_metadata", "deq_flow_hash");
+  add_required_field("standard_metadata", "deq_buffer_id");
+  add_required_field("standard_metadata", "deq_partition_id");
+  add_required_field("standard_metadata", "deq_partition_size");
+  add_required_field("standard_metadata", "deq_partition_max_size");
   // P4 program outputs
   add_required_field("standard_metadata", "rank");
   add_required_field("standard_metadata", "pifo_id");
@@ -108,6 +122,7 @@ EnqP4Pipe::process_pipeline(std_enq_meta_t &std_meta) {
   // using packet register 0 to store length, this register will be updated for
   // each add_header / remove_header primitive call
   packet->set_register(PACKET_LENGTH_REG_IDX, 0);
+  phv->get_field("standard_metadata.enq_trigger").set(std_meta.enq_trigger);
   phv->get_field("standard_metadata.pkt_len").set(std_meta.sched_meta.pkt_len);
   phv->get_field("standard_metadata.flow_hash").set(std_meta.sched_meta.flow_hash);
   phv->get_field("standard_metadata.buffer_id").set(std_meta.sched_meta.buffer_id);
@@ -118,6 +133,19 @@ EnqP4Pipe::process_pipeline(std_enq_meta_t &std_meta) {
   phv->get_field("standard_metadata.is_leaf").set(std_meta.is_leaf);
   phv->get_field("standard_metadata.child_node_id").set(std_meta.child_node_id);
   phv->get_field("standard_metadata.child_pifo_id").set(std_meta.child_pifo_id);
+  // dequeue event metadata
+  phv->get_field("standard_metadata.deq_trigger").set(std_meta.deq_trigger);
+  phv->get_field("standard_metadata.deq_node_id").set(std_meta.deq_node_id);
+  phv->get_field("standard_metadata.deq_pifo_id").set(std_meta.deq_pifo_id);
+  phv->get_field("standard_metadata.deq_rank").set(std_meta.deq_rank);
+  phv->get_field("standard_metadata.deq_tx_time").set(std_meta.deq_tx_time);
+  phv->get_field("standard_metadata.deq_tx_delta").set(std_meta.deq_tx_delta);
+  phv->get_field("standard_metadata.deq_pkt_len").set(std_meta.deq_sched_meta.pkt_len);
+  phv->get_field("standard_metadata.deq_flow_hash").set(std_meta.deq_sched_meta.flow_hash);
+  phv->get_field("standard_metadata.deq_buffer_id").set(std_meta.deq_sched_meta.buffer_id);
+  phv->get_field("standard_metadata.deq_partition_id").set(std_meta.deq_sched_meta.partition_id);
+  phv->get_field("standard_metadata.deq_partition_size").set(std_meta.deq_sched_meta.partition_size);
+  phv->get_field("standard_metadata.deq_partition_max_size").set(std_meta.deq_sched_meta.partition_max_size);
 
   phv->get_field("standard_metadata.trace_var1").set(std_meta.trace_var1);
   phv->get_field("standard_metadata.trace_var2").set(std_meta.trace_var2);
