@@ -8,9 +8,22 @@
  * if there are any lower priority packets waiting to be served.
  */
 
+#define NUM_FLOWS 3
+#define NUM_PRIORITIES 3
+#define MAX_PKTS 3
+
 control EnqueueLogic(inout headers hdr,
                      inout metadata meta,
                      inout standard_metadata_t standard_metadata) {
+
+    bit<32> flow_id;
+    bit<32> deq_windowID;
+    bit<32> cur_windowID;
+    bit<32> last_windowID;
+    bit<32> pkt_count;
+    register<bit<32>>(0) cur_window_reg;
+    register<bit<32>>(NUM_FLOWS) last_window_reg;
+    register<bit<32>>(NUM_FLOWS) pkt_count_reg;
 
     table enq_debug {
         key = {
@@ -45,33 +58,9 @@ control EnqueueLogic(inout headers hdr,
         size = 1;
     }
 
-#define NUM_FLOWS 3
-#define NUM_PRIORITIES 3
-#define MAX_PKTS 3
-
-    bool inc_rank;
-    bit<32> rank;
-    bit<32> flow_id;
-    bit<32> pkt_count;
-    register<bit<32>>(NUM_FLOWS) pkt_count_reg;
-    register<bit<32>>(NUM_FLOWS) last_rank_reg;
-
     /*
-     * Approach 1: token bucket for high priority packets, if
-     * there are not enough tokens then the packets are assigned
-     * low priority. If there are enough tokens then the packets
-     * are assigned high priority.  
-     *
-     * Approach 2: decaying counter for high priority packets,
-     * once a certain limit is exceeded, use low priority for
-     * these packets.
-     *
-     * Approach 3: Use per-flow token buckets to limit the dequeue
-     * rate of each flow. Assign lower priority to flows that exceed
-     * dequeue rate limit. What does "lower priority" mean here?
-     *
-     * ######## USE THIS APPROACH ########
-     * Approach 4: incomming flows can assign at most N packets to
+     * Approach:
+     * Incomming flows can assign at most N packets to
      * each window, the dequeue events advance the service window.
      * Each packet contains a rank and the ID of the window to which
      * it belongs. The window ID is passed back in dequeue events
@@ -160,3 +149,23 @@ DummyEgress(),
 DummyComputeChecksum(),
 DummyDeparser()
 ) main;
+
+
+/*
+ * Alternate approaches:
+ *
+ * Approach 1: token bucket for high priority packets, if
+ * there are not enough tokens then the packets are assigned
+ * low priority. If there are enough tokens then the packets
+ * are assigned high priority.  
+ *
+ * Approach 2: decaying counter for high priority packets,
+ * once a certain limit is exceeded, use low priority for
+ * these packets.
+ *
+ * Approach 3: Use per-flow token buckets to limit the dequeue
+ * rate of each flow. Assign lower priority to flows that exceed
+ * dequeue rate limit. What does "lower priority" mean here?
+ *
+ */
+
