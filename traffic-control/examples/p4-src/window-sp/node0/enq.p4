@@ -6,10 +6,6 @@
 /* Windowed Strict Priority:
  * Over each window of length T, at most N bytes from flow i are served
  * if there are any lower priority packets waiting to be served.
- *
- * NOTE: this implementation doesn't work because regardless of the rate
- * at which high priority packets are being sent, every MAX_PKTS packets
- * their priority will be decreased.
  */
 
 control EnqueueLogic(inout headers hdr,
@@ -29,6 +25,7 @@ control EnqueueLogic(inout headers hdr,
             standard_metadata.is_leaf : exact;
             standard_metadata.child_node_id : exact;
             standard_metadata.child_pifo_id : exact;
+            standard_metadata.user_meta : exact; // new
             standard_metadata.deq_trigger : exact;
             standard_metadata.deq_rank : exact;
             standard_metadata.deq_tx_time : exact;
@@ -39,6 +36,7 @@ control EnqueueLogic(inout headers hdr,
             standard_metadata.deq_partition_id : exact;
             standard_metadata.deq_partition_size : exact;
             standard_metadata.deq_partition_max_size : exact;
+            standard_metadata.deq_user_meta : exact; // new
         }
         actions = {
             NoAction;
@@ -58,39 +56,97 @@ control EnqueueLogic(inout headers hdr,
     register<bit<32>>(NUM_FLOWS) pkt_count_reg;
     register<bit<32>>(NUM_FLOWS) last_rank_reg;
 
+    /*
+     * Approach 1: token bucket for high priority packets, if
+     * there are not enough tokens then the packets are assigned
+     * low priority. If there are enough tokens then the packets
+     * are assigned high priority.  
+     *
+     * Approach 2: decaying counter for high priority packets,
+     * once a certain limit is exceeded, use low priority for
+     * these packets.
+     *
+     * Approach 3: Use per-flow token buckets to limit the dequeue
+     * rate of each flow. Assign lower priority to flows that exceed
+     * dequeue rate limit. What does "lower priority" mean here?
+     *
+     * ######## USE THIS APPROACH ########
+     * Approach 4: incomming flows can assign at most N packets to
+     * each window, the dequeue events advance the service window.
+     * Each packet contains a rank and the ID of the window to which
+     * it belongs. The window ID is passed back in dequeue events
+     * to advance the service window. Flows can only assign packets
+     * to either the current window or a future window. This is to
+     * avoid situations where, for example, flow A doesn't send any
+     * packets for a long time and then sends a long burst which all
+     * receive very high priority.
+     * The problem with this policy is that if it is used at a parent
+     * node then it wouldn't be able to limit the number of bytes
+     * assigned to each window, because a PIFO entry can point to
+     * different packets after subsequent enqueue operations.
+     * ###################################
+     * One tricky thing to enforce about this scheduling policy is
+     * that if extra packets from a flow are serviced as a result of
+     * there not being lower priority packets waiting, then that flow
+     * should not be punished in the next window.
+     *
+     * Might be best to use this as a root node rank computation
+     * to avoid reordering within a flow.
+     * Could also use dequeue events to track the rate of high
+     * priority packets being serviced. Problem there is that the
+     * deq_pkt_len doesn't necessarily correspond to the pkt_len
+     * of the actual packet being dequeued.
+     *
+     * Maybe I need to add a buffer_dequeue event that triggers
+     * rank pipelines with the actual dequeued packet metadata.
+     */
+
     apply {
         enq_debug.apply();
 
         flow_id = standard_metadata.buffer_id;
-        inc_rank = false; // default
+        deq_windowID = standard_metadata.deq_user_meta;
 
-        // update pkt_count_reg
+        // update cur_window_reg
         @atomic {
+            cur_window_reg.read(cur_windowID, 0);
+            if (standard_metadata.deq_trigger == 1) {
+                cur_windowID = deq_windowID;
+            }
+            cur_window_reg.write(0, cur_windowID);
+        }
+
+        // Track the number of packets assigned to each window
+        /*
+         * Two state variables here:
+         * last_window_reg - track the ID of the window that the last packet from this flow was assigned to
+         * pkt_count_reg - track the number of packets from this flow assigned to last_windowID
+         */
+        @atomic {
+            // update last_windowID if it is in the past or if we've 
+            last_window_reg.read(last_windowID, flow_id);
             pkt_count_reg.read(pkt_count, flow_id);
             if (standard_metadata.enq_trigger == 1) {
-                pkt_count = pkt_count + 1;
-                if (pkt_count > MAX_PKTS) {
-                    inc_rank = true;
-                    pkt_count = 0;
+                if (last_windowID >= cur_windowID) {
+                    pkt_count = pkt_count |+| 1;
+                    // update last_windowID if we've exceeded the limit for this window
+                    if (pkt_count > MAX_PKTS) {
+                        last_windowID = last_windowID |+| NUM_PRIORITIES;
+                    }
+                }
+                else {
+                    pkt_count = 1;
+                    // update last_windowID if it is in the past
+                    last_windowID = cur_windowID;
                 }
             }
             pkt_count_reg.write(flow_id, pkt_count);
-        }
-
-        // update last_rank_reg and max_rank_reg
-        @atomic {
-            max_rank_reg.read(max_rank, 0);
-            last_rank_reg.read(rank, flow_id);
-            if (inc_rank) {
-                rank = rank + flow_id + max_rank;
-                max_rank = rank;
-            }
-            last_rank_reg.write(flow_id, rank);
-            max_rank.write(0, max_rank);
+            last_window_reg.write(flow_id, last_windowID);
         }
 
         // set the outputs
-        standard_metadata.rank = rank;
+        standard_metadata.rank = last_windowID |+| flow_id;
+        standard_metadata.user_meta = last_windowID;
         standard_metadata.pifo_id = 0;
 
     }
