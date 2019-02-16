@@ -37,17 +37,17 @@ namespace ns3 {
 //
 
 PifoEntry::PifoEntry (Ptr<QueueDiscItem> a_item, uint32_t a_rank, int64_t a_tx_time,
-                      uint32_t a_tx_delta, sched_meta_t a_sched_meta)
+                      uint32_t a_tx_delta, uint32_t a_user_meta, sched_meta_t a_sched_meta)
   : item (a_item), node_id (0), pifo_id (0), rank (a_rank),
-    tx_time (a_tx_time), tx_delta (a_tx_delta), sched_meta (a_sched_meta)
+    tx_time (a_tx_time), tx_delta (a_tx_delta), user_meta (a_user_meta), sched_meta (a_sched_meta)
 {
   // Nothing to do
 }
 
 PifoEntry::PifoEntry (uint8_t a_node_id, uint8_t a_pifo_id, uint32_t a_rank, int64_t a_tx_time,
-                      uint32_t a_tx_delta, sched_meta_t a_sched_meta)
+                      uint32_t a_tx_delta, uint32_t a_user_meta, sched_meta_t a_sched_meta)
   : item (0), node_id (a_node_id), pifo_id (a_pifo_id), rank (a_rank),
-    tx_time (a_tx_time), tx_delta (a_tx_delta), sched_meta (a_sched_meta)
+    tx_time (a_tx_time), tx_delta (a_tx_delta), user_meta (a_user_meta), sched_meta (a_sched_meta)
 {
   // Nothing to do
 }
@@ -292,6 +292,7 @@ PifoTreeNode::InitEnqMeta (std_enq_meta_t& std_enq_meta)
   std_enq_meta.deq_rank = 0;
   std_enq_meta.deq_tx_time = 0;
   std_enq_meta.deq_tx_delta = 0;
+  std_enq_meta.deq_user_meta = 0;
   std_enq_meta.deq_sched_meta.pkt_len = 0;
   std_enq_meta.deq_sched_meta.flow_hash = 0;
   std_enq_meta.deq_sched_meta.buffer_id = 0;
@@ -304,6 +305,7 @@ PifoTreeNode::InitEnqMeta (std_enq_meta_t& std_enq_meta)
   std_enq_meta.enq_delay = 0;
   std_enq_meta.tx_time = 0;
   std_enq_meta.tx_delta = 0;
+  std_enq_meta.user_meta = 0;
   // tracedata
   std_enq_meta.trace_var1 = m_enqP4Var1;
   std_enq_meta.trace_var2 = m_enqP4Var2;
@@ -383,6 +385,7 @@ PifoTreeNode::EnqueueLeaf (Ptr<QueueDiscItem> item, sched_meta_t sched_meta)
                            std_enq_meta.rank,
                            std_enq_meta.tx_time,
                            std_enq_meta.tx_delta,
+                           std_enq_meta.user_meta,
                            sched_meta
                            );
   m_nPackets++;
@@ -434,6 +437,7 @@ PifoTreeNode::EnqueueNonLeaf (uint32_t child_node_gid, uint8_t child_pifo_id, sc
                            std_enq_meta.rank,
                            std_enq_meta.tx_time,
                            std_enq_meta.tx_delta,
+                           std_enq_meta.user_meta,
                            sched_meta
                            );
   m_nPackets++;
@@ -547,6 +551,7 @@ PifoTreeNode::DequeuePifo (uint8_t pifo_id, Ptr<QueueDiscItem>& item, sched_meta
       uint32_t rank = m_pifos[pifo_id].top ().rank;
       int64_t tx_time = m_pifos[pifo_id].top ().tx_time;
       uint32_t tx_delta = m_pifos[pifo_id].top ().tx_delta;
+      uint32_t user_meta = m_pifos[pifo_id].top ().user_meta;
       sched_meta = m_pifos[pifo_id].top ().sched_meta;
       m_pifos[pifo_id].dequeue();
       m_nPackets--;
@@ -563,6 +568,7 @@ PifoTreeNode::DequeuePifo (uint8_t pifo_id, Ptr<QueueDiscItem>& item, sched_meta
       std_enq_meta.deq_rank = rank;
       std_enq_meta.deq_tx_time = tx_time;
       std_enq_meta.deq_tx_delta = tx_delta;
+      std_enq_meta.deq_user_meta = user_meta;
       std_enq_meta.deq_sched_meta = sched_meta;
 
       // perform enqueue P4 processing

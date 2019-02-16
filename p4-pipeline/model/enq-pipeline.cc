@@ -62,6 +62,7 @@ EnqP4Pipe::EnqP4Pipe (std::string jsonFile)
   add_required_field("standard_metadata", "deq_rank");
   add_required_field("standard_metadata", "deq_tx_time");
   add_required_field("standard_metadata", "deq_tx_delta");
+  add_required_field("standard_metadata", "deq_user_meta");
   add_required_field("standard_metadata", "deq_pkt_len");
   add_required_field("standard_metadata", "deq_flow_hash");
   add_required_field("standard_metadata", "deq_buffer_id");
@@ -72,6 +73,9 @@ EnqP4Pipe::EnqP4Pipe (std::string jsonFile)
   add_required_field("standard_metadata", "rank");
   add_required_field("standard_metadata", "pifo_id");
   add_required_field("standard_metadata", "enq_delay");
+  add_required_field("standard_metadata", "tx_time");
+  add_required_field("standard_metadata", "tx_delta");
+  add_required_field("standard_metadata", "user_meta");
   // P4 program tracedata
   add_required_field("standard_metadata", "trace_var1");
   add_required_field("standard_metadata", "trace_var2");
@@ -109,7 +113,6 @@ EnqP4Pipe::process_pipeline(std_enq_meta_t &std_meta) {
   bm::Pipeline *mau = this->get_pipeline("ingress");
   bm::PHV *phv;
 
-  // TODO(sibanez): is this set correctly?
   auto packet = new_packet_ptr(0, packet_id++, 0, bm::PacketBuffer (0));
 
   BMELOG(packet_in, *packet);
@@ -140,6 +143,7 @@ EnqP4Pipe::process_pipeline(std_enq_meta_t &std_meta) {
   phv->get_field("standard_metadata.deq_rank").set(std_meta.deq_rank);
   phv->get_field("standard_metadata.deq_tx_time").set(std_meta.deq_tx_time);
   phv->get_field("standard_metadata.deq_tx_delta").set(std_meta.deq_tx_delta);
+  phv->get_field("standard_metadata.deq_user_meta").set(std_meta.deq_user_meta);
   phv->get_field("standard_metadata.deq_pkt_len").set(std_meta.deq_sched_meta.pkt_len);
   phv->get_field("standard_metadata.deq_flow_hash").set(std_meta.deq_sched_meta.flow_hash);
   phv->get_field("standard_metadata.deq_buffer_id").set(std_meta.deq_sched_meta.buffer_id);
@@ -185,6 +189,10 @@ EnqP4Pipe::process_pipeline(std_enq_meta_t &std_meta) {
   int tx_delta = phv->get_field("standard_metadata.tx_delta").get_int();
   BMLOG_DEBUG_PKT(*packet, "tx_delta field is {}", tx_delta);
   std_meta.tx_delta = tx_delta;
+
+  int user_meta = phv->get_field("standard_metadata.user_meta").get_int();
+  BMLOG_DEBUG_PKT(*packet, "user_meta field is {}", user_meta);
+  std_meta.user_meta = user_meta;
 
   BMELOG(packet_out, *packet);
   BMLOG_DEBUG_PKT(*packet, "Transmitting packet");

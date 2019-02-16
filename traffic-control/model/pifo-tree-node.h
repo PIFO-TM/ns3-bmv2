@@ -87,13 +87,13 @@ public:
    * and PIFO IDs.
    */
   PifoEntry (Ptr<QueueDiscItem> a_item, uint32_t a_rank, int64_t a_tx_time,
-             uint32_t a_tx_delta, sched_meta_t a_sched_meta);
+             uint32_t a_tx_delta, uint32_t a_user_meta, sched_meta_t a_sched_meta);
 
   /**
    * \brief PifoEntry constructor used for non-leaf node PIFO nodes. No need to specify Ptr<QueueDiscItem>
    */
   PifoEntry (uint8_t a_node_id, uint8_t a_pifo_id, uint32_t a_rank, int64_t a_tx_time,
-             uint32_t a_tx_delta, sched_meta_t a_sched_meta);
+             uint32_t a_tx_delta, uint32_t a_user_meta, sched_meta_t a_sched_meta);
 
   /// The queue disc item, which is only valid for PIFOs in a leaf node
   Ptr<QueueDiscItem> item;
@@ -107,6 +107,8 @@ public:
   int64_t tx_time;
   /// time at which this entry can be transmitted (relative to previous pkt in PIFO)
   uint32_t tx_delta;
+  /// metadata reserved for the user
+  uint32_t user_meta;
   /// Scheduling metadata of the packet that originally created this entry
   sched_meta_t sched_meta;
 };

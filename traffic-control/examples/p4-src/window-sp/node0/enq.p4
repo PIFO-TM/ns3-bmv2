@@ -21,7 +21,7 @@ control EnqueueLogic(inout headers hdr,
     bit<32> cur_windowID;
     bit<32> last_windowID;
     bit<32> pkt_count;
-    register<bit<32>>(0) cur_window_reg;
+    register<bit<32>>(1) cur_window_reg;
     register<bit<32>>(NUM_FLOWS) last_window_reg;
     register<bit<32>>(NUM_FLOWS) pkt_count_reg;
 
@@ -38,18 +38,17 @@ control EnqueueLogic(inout headers hdr,
             standard_metadata.is_leaf : exact;
             standard_metadata.child_node_id : exact;
             standard_metadata.child_pifo_id : exact;
-            standard_metadata.user_meta : exact; // new
             standard_metadata.deq_trigger : exact;
             standard_metadata.deq_rank : exact;
             standard_metadata.deq_tx_time : exact;
             standard_metadata.deq_tx_delta : exact;
+            standard_metadata.deq_user_meta : exact; // new
             standard_metadata.deq_pkt_len : exact;
             standard_metadata.deq_flow_hash : exact;
             standard_metadata.deq_buffer_id : exact;
             standard_metadata.deq_partition_id : exact;
             standard_metadata.deq_partition_size : exact;
             standard_metadata.deq_partition_max_size : exact;
-            standard_metadata.deq_user_meta : exact; // new
         }
         actions = {
             NoAction;

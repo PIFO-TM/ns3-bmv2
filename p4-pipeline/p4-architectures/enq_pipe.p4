@@ -52,6 +52,7 @@ struct standard_metadata_t {
     bit<32> deq_rank;
     bit<64> deq_tx_time;
     bit<32> deq_tx_delta;
+    bit<32> deq_user_meta;
     bit<32> deq_pkt_len;
     bit<32> deq_flow_hash;
     bit<32> deq_buffer_id;
@@ -66,6 +67,7 @@ struct standard_metadata_t {
     bit<32> enq_delay;
     bit<64> tx_time;
     bit<32> tx_delta;
+    bit<32> user_meta;
     //
     // Inputs / Outputs
     //
