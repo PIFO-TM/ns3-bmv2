@@ -72,21 +72,6 @@ control EnqueueLogic(inout headers hdr,
      * node then it wouldn't be able to limit the number of bytes
      * assigned to each window, because a PIFO entry can point to
      * different packets after subsequent enqueue operations.
-     * ###################################
-     * One tricky thing to enforce about this scheduling policy is
-     * that if extra packets from a flow are serviced as a result of
-     * there not being lower priority packets waiting, then that flow
-     * should not be punished in the next window.
-     *
-     * Might be best to use this as a root node rank computation
-     * to avoid reordering within a flow.
-     * Could also use dequeue events to track the rate of high
-     * priority packets being serviced. Problem there is that the
-     * deq_pkt_len doesn't necessarily correspond to the pkt_len
-     * of the actual packet being dequeued.
-     *
-     * Maybe I need to add a buffer_dequeue event that triggers
-     * rank pipelines with the actual dequeued packet metadata.
      */
 
     apply {
