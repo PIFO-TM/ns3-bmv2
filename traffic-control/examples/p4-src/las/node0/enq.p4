@@ -13,8 +13,7 @@ control EnqueueLogic(inout headers hdr,
                      inout metadata meta,
                      inout standard_metadata_t standard_metadata) {
 
-    bit<32> enq_flow_id;
-    bit<32> deq_flow_id;
+    bit<32> flow_id;
     bit<32> service_count;
     register<bit<32>>(NUM_FLOWS) service_count_reg;
 
@@ -53,20 +52,17 @@ control EnqueueLogic(inout headers hdr,
     apply {
         enq_debug.apply();
 
-        enq_flow_id = standard_metadata.buffer_id;
-        deq_flow_id = standard_metadata.deq_buffer_id;
+        flow_id = standard_metadata.buffer_id;
 
         // update service_count
-        /* NOTE: requires dual port service_count register because the enqueue
-           and dequeue packets could belong to different flows
+        /* The service count is just the number of bytes received for this flow
          */
         @atomic {
-            if (standard_metadata.deq_trigger == 1) {
-                service_count_reg.read(service_count, deq_flow_id);
-                service_count = service_count + standard_metadata.deq_pkt_len;
-                service_count_reg.write(deq_flow_id, service_count);
+            service_count_reg.read(service_count, flow_id);
+            if (standard_metadata.enq_trigger == 1) {
+                service_count = service_count + standard_metadata.pkt_len;
             }
-            service_count_reg.read(service_count, enq_flow_id);
+            service_count_reg.write(flow_id, service_count);
         }
 
         // set the outputs
