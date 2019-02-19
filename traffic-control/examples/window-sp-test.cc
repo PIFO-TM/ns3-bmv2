@@ -314,7 +314,7 @@ SetupTopo ()
 void
 ChangeAppRate (Ptr<OnOffApplication> app, int rate)
 {
-  app->SetAttribute("DataRate", DataRate (std::to_string(rate) + "Mbps"));
+  app->SetAttribute("DataRate", DataRateValue (DataRate (std::to_string(rate) + "Mbps")));
 }
 
 void
