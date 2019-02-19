@@ -8,21 +8,15 @@
  */
 
 #define NUM_FLOWS 3
-#define NUM_PRIORITIES 3
-#define MAX_PKTS 3
 
 control EnqueueLogic(inout headers hdr,
                      inout metadata meta,
                      inout standard_metadata_t standard_metadata) {
 
-    bit<32> flow_id;
-    bit<32> deq_windowID;
-    bit<32> cur_windowID;
-    bit<32> last_windowID;
-    bit<32> pkt_count;
-    register<bit<32>>(1) cur_window_reg;
-    register<bit<32>>(NUM_FLOWS) last_window_reg;
-    register<bit<32>>(NUM_FLOWS) pkt_count_reg;
+    bit<32> enq_flow_id;
+    bit<32> deq_flow_id;
+    bit<32> service_count;
+    register<bit<32>>(NUM_FLOWS) service_count_reg;
 
     table enq_debug {
         key = {
@@ -41,7 +35,7 @@ control EnqueueLogic(inout headers hdr,
             standard_metadata.deq_rank : exact;
             standard_metadata.deq_tx_time : exact;
             standard_metadata.deq_tx_delta : exact;
-            standard_metadata.deq_user_meta : exact; // new
+            standard_metadata.deq_user_meta : exact;
             standard_metadata.deq_pkt_len : exact;
             standard_metadata.deq_flow_hash : exact;
             standard_metadata.deq_buffer_id : exact;
