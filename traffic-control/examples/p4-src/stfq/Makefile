@@ -13,6 +13,6 @@ all:
 
 clean:
 	rm -f classification/*.json node0/*.json
-	rm -r dummy_blocks.p4
+	rm -f dummy_blocks.p4
 	rm -f *_pipe.p4
 
