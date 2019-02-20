@@ -325,14 +325,14 @@ SetupApps ()
       // Install Sources
       dstAddrStr = "10.2." + std::to_string (i+1) + ".1";
       dstAddr = Address (InetSocketAddress (Ipv4Address (dstAddrStr.c_str()), port));
-      OnOffHelper onoff ("ns3::TcpSocketFactory", dstAddr);
+      OnOffHelper onoff ("ns3::UdpSocketFactory", dstAddr);
       onoff.SetConstantRate (DataRate (sendRate), meanPktSize);
       onoff.SetAttribute ("MaxBytes", UintegerValue (flowSizes[i]));
       app = onoff.Install (sources.Get (i));
       app.Start (Seconds (appStartTimes[i] + sink_start_time));
 
       // Install Sinks
-      PacketSinkHelper sink ("ns3::TcpSocketFactory", dstAddr);
+      PacketSinkHelper sink ("ns3::UdpSocketFactory", dstAddr);
       app = sink.Install (sinks.Get (i));
       app.Start (Seconds (sink_start_time));
       app.Stop (Seconds (sink_stop_time));
